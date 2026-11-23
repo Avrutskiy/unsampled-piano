@@ -141,6 +141,7 @@ For playing and setting up the instrument, see the [website](https://unsampled.m
 - Cast-iron frame and rim: [docs/frame_rim.md](docs/frame_rim.md)
 - Note sustain (bridge, soundboard thickness, string losses): [docs/sustain.md](docs/sustain.md)
 - Dynamics, pedal and sympathetic resonance: [docs/dynamics_pedal.md](docs/dynamics_pedal.md)
+- [Measured concert grand checkpoint](docs/concert_checkpoint.md) with playable preset, register listening results and reproduction commands.
 - Comparison with Salamander, Iowa and a commercial modelled piano: [docs/comparison.md](docs/comparison.md)
 - Test bench: the model scored against real pianos (`cargo xtask bench`): [docs/bench.md](docs/bench.md)
 - The bench's channel-power protocol and Plath's fixed-gain import, before/after (French): [docs/bench_bias_correction.md](docs/bench_bias_correction.md)

@@ -1,0 +1,534 @@
+# Concert grand reconstruction, 23 November 2026.
+# Starting instrument: the fork's Concert grand/concert_grand.toml.
+# The bass inharmonicity law uses the RT-425 fit recorded in docs/steinway_d.md.
+# All remaining parameters are the resolved concert preset for this engine version.
+# The wood, strings and bridges use published geometry. Felt, loss, tuning and
+# microphone parameters also incorporate the parent preset's empirical voicing.
+# Source overview: https://juliettechabassier.perso.math.cnrs.fr/public/focus/2023/piano/
+# Physical piano preset. Every field is optional: omitted ones keep the
+# default instrument's value. Units are SI unless stated otherwise.
+
+a4 = 440.0
+una_corda_softening = 0.6
+una_corda_shift = 1.0
+half_blow = 0.0
+mute_felt = 0.0
+repetition_time = 0.0
+repetition_floor = 0.5
+output_gain_db = 0.0
+limiter = 1.0
+limiter_ceiling_db = -1.0
+hardness = 1.2
+hardness_slope = -0.05
+hardness_slope_bass = 0.0318
+hardness_slope_top = 0.25
+core_hardness = 8.0
+core_p = 7.0
+core_depth_bass = 0.3
+core_depth_mid = 0.5
+core_depth_treble = 0.0
+p_bass = -1.0
+p_offset = 0.0
+hysteresis = 0.6
+contact_width_scale = 1.0
+hammer_mass_scale = 1.003
+hammer_mass_slope = 0.00078
+shank_share = 0.3
+shank_freq = 300.0
+shank_loss = 0.1
+shank_freq_mid = 700.0
+strike_ratio = 0.1215
+strike_ratio_top = 0.05
+strike_ratio_spread = 0.0007
+
+[velocity]
+vmin = 0.205
+vmax = 5.6
+curve = 0.78
+
+[inharmonicity]
+a_bass = -0.1163
+b_bass = -6.727
+a_treble = 0.0903
+b_treble = -13.526
+
+[stretch]
+a_t = 0.917211
+k_t = 0.0826
+a_b = 0.265277
+k_b = 0.077178
+c = -1.402352
+
+[temperament]
+kind = 0
+key = 0
+cents = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[losses]
+b1_slope = 0.055
+b1_offset = -5.1
+b2 = 0.0000001
+b1_floor = 0.1
+wound_until = 41
+top_slope = 0.0
+top_from = 84
+winding = 0.0001
+winding_until = 40
+b2_top = 0.00000039
+b2_top_from = 60
+b2_high = 0.0000001
+b2_high_from = 96
+physical = false
+air_scale = 1.0
+delta_ve = 0.0045
+q_te = 0.000203
+
+[scale]
+len_c8 = 0.0494
+ratio_per_octave = 1.91
+break_note = 41
+len_a0 = 2.01
+tension = 750.0
+tension_by_key = true
+tension_curve = [
+    [24.0, 1722.0],
+    [26.0, 1798.0],
+    [29.0, 1618.0],
+    [33.0, 1190.0],
+    [36.0, 915.0],
+    [40.0, 741.0],
+    [41.0, 799.0],
+    [48.0, 759.0],
+    [60.0, 741.0],
+    [72.0, 696.0],
+    [96.0, 670.0],
+    [107.0, 588.0],
+]
+wound_lengths_by_key = true
+wound_length_curve = [
+    [24.0, 2.007],
+    [26.0, 1.975],
+    [29.0, 1.91],
+    [33.0, 1.76],
+    [36.0, 1.6],
+    [40.0, 1.378],
+]
+
+[unison]
+bichord_from = 29
+trichord_from = 34
+width_mid = 1.0
+width_treble = 2.0
+width_curve = 0.8
+width_bass = 0.1
+width_bass_until = 47
+hit_spread = 0.3
+soft_exponent = 1.0
+soft_speed = 2.75
+height_spread = 0.0001
+load_ramp = 36.0
+strike_spread = 0.0003
+b_spread = 0.0
+
+[bridge]
+g_1k = 0.00046
+slope = 0.109
+b_over_g = 1.5
+
+[polarization]
+enabled = true
+h_coupling = 0.03
+cross = 0.1732
+detune_cents = 0.3
+radiation = 0.8
+hammer_tilt = 0.05
+smooth = 0.0
+slope = 1.5
+slope_from = 261.63
+slope_to = 532.5
+bass = true
+bass_until = 40
+bass_fade = 8
+hammer_tilt_bass = 0.6
+radiation_bass = 0.6
+cross_bass = 0.02
+
+[soundboard]
+a = 2.124
+b = 1.46
+rho_h = 14.7
+dx = 5737.5
+dy = 2550.0
+loss_factor = 0.0245
+loss_corner = 3500.0
+loss_low_corner = 80.0
+edge_loss = 0.001
+edge_depth = 0.15
+edge_corner = 400.0
+bridge_mass = 0.0
+series_stiffness = 20000000.0
+bridge_yield = false
+yield_conductance = 0.001
+yield_corner = 3000.0
+bridge_stiffness = 470.0
+bridge_line_mass = 0.6
+bridge_spread = 0.3
+bridge_beam = 0.0
+impedance_slope = 0.0024
+impedance_slope_bass = 0.0076
+f_max = 20000.0
+piston_freq = 0.0
+piston_loss = 0.7
+piston_mass = 6.0
+piston_radiation = 0.003
+crown_freq = 40.0
+treble_bridge = [
+    [0.0443, 0.048],
+    [0.0809, 0.202],
+    [0.1596, 0.38],
+    [0.3441, 0.579],
+    [0.8023, 0.842],
+]
+bass_bridge = [
+    [0.5765, 0.562],
+    [0.8707, 0.753],
+]
+bass_bridge_bow = 0.034
+main_string_slant = 0.0
+string_sections = [
+    [41.0, 0.014],
+    [56.0, 0.014],
+    [74.0, 0.014],
+    [92.0, 0.014],
+]
+bridge_keys = [
+    [24.0, 0.854, 0.726],
+    [27.0, 0.8258, 0.6849],
+    [30.0, 0.774, 0.6438],
+    [33.0, 0.7128, 0.6164],
+    [36.0, 0.6516, 0.5959],
+    [40.0, 0.581, 0.5753],
+    [41.0, 0.8023, 0.8425],
+    [43.0, 0.7222, 0.8151],
+    [46.0, 0.6186, 0.7603],
+    [50.0, 0.5056, 0.6918],
+    [54.0, 0.4115, 0.6301],
+    [58.0, 0.3409, 0.5753],
+    [63.0, 0.2655, 0.5137],
+    [68.0, 0.209, 0.4521],
+    [73.0, 0.1667, 0.3973],
+    [78.0, 0.1384, 0.3425],
+    [84.0, 0.1102, 0.2808],
+    [90.0, 0.0866, 0.2123],
+    [96.0, 0.0678, 0.1507],
+    [102.0, 0.0537, 0.0959],
+    [107.0, 0.0443, 0.0617],
+    [0.0, 0.0, 0.0],
+    [0.0, 0.0, 0.0],
+    [0.0, 0.0, 0.0],
+]
+main_bridge_from = 41
+mics_relative = true
+mic_gain_db = -9.8
+outputs_per_mic = false
+radiate = true
+grid_step = 0.015
+back_depth = 0.6
+back_gain = 0.6
+wall_distance = 0.0
+wall_reflection = 0.9
+vertical = false
+case_open = 1.0
+case_panel_mass = 6.0
+lid_angle = 35.0
+lid_removed = false
+lid_hinge_height = 0.16
+lid_reflection = 0.85
+lid_transmission = 0.1
+lid_leak = 0.25
+string_load = 1.0
+string_load_free = 1.0
+exact_below = 6000.0
+outline = [
+    [0.033, 0.0469],
+    [0.1106, 0.0435],
+    [0.286, 0.2972],
+    [0.3684, 0.356],
+    [0.5206, 0.3865],
+    [0.9223, 0.454],
+    [0.9735, 0.5841],
+    [0.9808, 0.8799],
+    [0.9423, 0.9727],
+    [0.0687, 0.9796],
+]
+outline_below = 1500.0
+rib_spacing = 0.0
+rib_share = 0.0
+rib_jitter = 0.0
+scatter = 0.0
+scatter_corner = 1500.0
+scatter_step = 0.1
+scatter_height = 0.05
+scatter_shadow = 0.0
+case_field = true
+radiation_delays = false
+case_field_builds = true
+forced_radiation = false
+bridge_rocking = false
+bridge_height = 0.033
+
+[[soundboard.mics]]
+at = [0.294118, 0.346154, 0.4]
+upright = [0.705882, 0.653846, 0.4]
+pattern = 0.5
+aim = [0.294118, 0.346154, 0.0]
+aim_upright = [0.705882, 0.653846, 0.0]
+gain_db = 0.0
+pan = -1.0
+
+[[soundboard.mics]]
+at = [0.705882, 0.653846, 0.4]
+upright = [0.294118, 0.346154, 0.4]
+pattern = 0.5
+aim = [0.705882, 0.653846, 0.0]
+aim_upright = [0.294118, 0.346154, 0.0]
+gain_db = 0.0
+pan = 1.0
+
+[[soundboard.mics]]
+at = [0.323529, -1.230769, 2.0]
+upright = [-0.2, 0.7, 2.0]
+pattern = 1.0
+gain_db = 7.8
+pan = -1.0
+
+[[soundboard.mics]]
+at = [0.735294, -1.230769, 2.0]
+upright = [-0.2, 0.3, 2.0]
+pattern = 1.0
+gain_db = 7.8
+pan = 1.0
+
+[soundboard.structure]
+enabled = true
+air = true
+clamped = false
+edge_spring = 1500.0
+step = 0.01
+below = 6000.0
+grain_angle = 40.0
+spruce_density = 390.0
+spruce_el = 11600000000.0
+spruce_er = 900000000.0
+spruce_g = 750000000.0
+spruce_nu = 0.37
+spruce_gl = 720000000.0
+spruce_gr = 39000000.0
+bridge_density = 750.0
+bridge_el = 13700000000.0
+bridge_er = 2240000000.0
+bridge_g = 1610000000.0
+bridge_nu = 0.3
+bridge_gl = 1060000000.0
+bridge_gr = 460000000.0
+plate_center = 0.009
+plate_edge = 0.0068
+plate_taper = 0.1
+ribs = [
+    [0.0262, 0.1568, 0.0869, 0.047, 0.026, 0.026],
+    [0.0316, 0.258, 0.1311, 0.078, 0.028, 0.028],
+    [0.0376, 0.3698, 0.1688, 0.1325, 0.028, 0.028],
+    [0.0434, 0.4777, 0.2051, 0.1851, 0.031, 0.031],
+    [0.0494, 0.5898, 0.2429, 0.2397, 0.032, 0.032],
+    [0.0556, 0.7041, 0.2814, 0.2954, 0.035, 0.035],
+    [0.0623, 0.8292, 0.3349, 0.3358, 0.035, 0.035],
+    [0.0691, 0.9562, 0.3961, 0.3645, 0.035, 0.035],
+    [0.1368, 0.9764, 0.4671, 0.3787, 0.035, 0.035],
+    [0.2178, 0.9758, 0.54, 0.3927, 0.035, 0.035],
+    [0.2981, 0.9751, 0.6133, 0.405, 0.035, 0.035],
+    [0.3858, 0.9744, 0.6931, 0.4184, 0.035, 0.035],
+    [0.4729, 0.9738, 0.7725, 0.4317, 0.035, 0.035],
+    [0.5594, 0.9731, 0.8512, 0.445, 0.035, 0.035],
+    [0.644, 0.9724, 0.9242, 0.4653, 0.035, 0.035],
+    [0.7236, 0.9718, 0.9572, 0.5491, 0.036, 0.036],
+    [0.8068, 0.9711, 0.974, 0.6685, 0.036, 0.036],
+    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+]
+rib_feather = 0.15
+rib_tip = 0.004
+rib_width_treble = 0.0215
+rib_width_bass = 0.0255
+main_bridge_thickness = [
+    [41.0, 0.0465],
+    [49.0, 0.0455],
+    [57.0, 0.0445],
+    [65.0, 0.044],
+    [77.0, 0.042],
+    [89.0, 0.0395],
+    [99.0, 0.0385],
+    [108.0, 0.038],
+]
+bass_bridge_thickness = [
+    [21.0, 0.069],
+    [32.0, 0.069],
+    [40.0, 0.069],
+]
+bridge_width = 0.03
+bridge_ring = 0.1
+strings = true
+strings_grip = true
+back_length = [
+    [21.0, 0.24],
+    [40.0, 0.18],
+    [41.0, 0.22],
+    [60.0, 0.105],
+    [84.0, 0.058],
+    [108.0, 0.045],
+]
+
+[damper]
+position = 0.14
+behind_strike = 0.0425
+width = 0.045
+width_bass = 0.1
+node_floor = 0.15
+strength = 0.2
+strength_slope = 1.0
+contact_exponent = 1.5
+horizontal = 0.3
+grip_rise = false
+horizontal_high = 1.0
+node_floor_high = 0.5
+grip_corner = 500.0
+wedges = true
+wedge_until = 35
+wedge_strength = 0.06
+highest_note = 86
+dodge = true
+dodge_from = 39
+dodge_until = 42
+dodge_by = 0.015
+pedal_free = 0.3
+pedal_contact = 0.6
+pedal_curve = 1.2
+fall_time = 0.015
+lift_time = 0.005
+
+[sympathetic]
+enabled = true
+max_freq = 5000.0
+gain = 1.0
+self_cancel = true
+brake = true
+rear = true
+rear_from = 59
+rear_loss = 0.0
+bridge_cut = false
+bridge_below = 10000.0
+
+[nonlinear]
+enabled = true
+young = 200000000000.0
+max_note = 64
+max_partial_hz = 5000.0
+max_long_hz = 8000.0
+long_loss = 0.005
+coupling = 1.0
+coupling_plain = 0.3
+coupling_corner = 1000.0
+strike_stretch = true
+strike_scale = 0.25
+
+[noise]
+keybed = 0.1051
+damper_mass = 0.002943
+damper_speed = 0.1
+damper_landing = 0.004
+pedal = 0.1472
+knock_time = 0.003
+action = 0.02102
+action_time = 0.2
+action_delay = 0.008
+case = 0.05
+case_low = 80.0
+case_time = 0.55
+
+[body]
+enabled = true
+gain = 0.05
+slope = -3.0
+levels = [-7.0, 3.0, -1.0, -12.0, -21.0, -13.0, -18.5, -32.0]
+t60 = [1.6, 1.15, 0.9, 0.8, 0.8, 0.5, 0.3, 0.2]
+delay = 0.002
+rise = 0.1
+shared = 0.5
+speed_ref = 2.76
+speed_corner = 1300.0
+speed_low = [0.0, 0.0, 0.45, 1.05]
+speed_high = [2.5, 1.5, 1.0, -0.4]
+speed_halo = [1.0, 0.25, 0.4, 0.3]
+
+[room]
+enabled = true
+size = [40.0, 28.0, 16.0]
+piano = [6.0, 13.0, 0.9]
+absorption_low = 0.327
+absorption_high = 0.37
+order = 3
+tail_gain = 1.0
+directivity = 0.0
+
+[frame]
+enabled = true
+a = 2.324
+b = 1.46
+offset_x = -0.2
+agraffe_x = 0.05
+height = 0.08
+rho_h = 110.0
+stiffness = 250000.0
+loss_factor = 0.02
+back_depth = 0.05
+back_gain = 0.9
+solidity = 0.4
+f_max = 12000.0
+gain = 1.0
+coupling = 1.0
+capo_bar = true
+capo_from = 74
+duplex = true
+duplex_group = 6
+duplex_far = 0.048
+duplex_near = 0.034
+duplex_loss = 3.5
+
+[rim]
+enabled = true
+height = 0.4
+thickness = 0.083
+top = 0.16
+young = 12000000000.0
+shear = 1000000000.0
+density = 650.0
+loss_factor = 0.02
+k_max = 8
+f_max = 3000.0
+couple_f_max = 2000.0
+inner_gain = 0.5
+follows_outline = true
+gain = 1.0
+
+[macros]
+tone = 0.0
+touch = 0.0
+sustain = 0.0
+resonance = 0.0
+release = 0.0
+unisons = 0.0
+mechanism = 0.0
+size = 0.0
+lid = 0.0
+space = 0.0
+stretch = 0.0
