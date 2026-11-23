@@ -1,0 +1,9 @@
+# A voicing of the two-metre grand. Settings and evaluation are in
+# docs/studio_grand_voicing_20261123_01.md.
+hardness_slope_top = 0.20
+# Short presets otherwise inherit the historical uniform hammer shank.
+shank_freq_mid = 700.0
+
+[unison]
+# Width in cents at C8. The engine approaches it gradually from C4.
+width_treble = 7.5

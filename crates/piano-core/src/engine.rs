@@ -866,13 +866,13 @@ impl Engine {
         for ev in events {
             let f = (ev.frame as usize).saturating_sub(offset).min(len);
             self.render(pos, f);
-            self.render_body(pos, f, body_gain);
+            self.render_mechanics(pos, f, body_gain);
             pos = f;
             self.now = t0 + f as u64;
             self.handle(ev.event);
         }
         self.render(pos, len);
-        self.render_body(pos, len, body_gain);
+        self.render_mechanics(pos, len, body_gain);
         // The rear lengths answer the bridge (the same delayed motion the
         // strings take) and push on the sympathetic board.
         if self.sympathy() {
@@ -884,7 +884,6 @@ impl Engine {
             }
         }
 
-        self.render_knocks(len);
         for c in chans.iter_mut() {
             c.fill(0.0);
         }
@@ -1086,7 +1085,7 @@ impl Engine {
                 let [nl, nr] = &mut self.noise_buf;
                 let (nl, nr) = (&mut nl[..len], &mut nr[..len]);
                 // The body's halo and the case's knock are already in
-                // (render_body).
+                // (render_mechanics).
                 self.action.render([&mut *nl, &mut *nr], out_gain * PRESSURE_GAIN);
                 // Each microphone hears them from its distance: a far pair
                 // later and weaker (crate::mics::noise_paths).
@@ -1226,10 +1225,10 @@ impl Engine {
     }
 
     /// Adds the pending frame knocks to the region forces.
-    fn render_knocks(&mut self, len: usize) {
+    fn render_knocks(&mut self, from: usize, to: usize) {
         for k in self.knocks.iter_mut().filter(|k| k.pos < k.len) {
             let r = &mut self.region[k.region];
-            for x in r[..len].iter_mut() {
+            for x in &mut r[from..to] {
                 if k.pos >= k.len {
                     break;
                 }
@@ -1436,13 +1435,13 @@ impl Engine {
         self.gain
     }
 
-    /// The body's halo and the case's knock over samples `a..b` of the
-    /// sub-block, into the noise buffers, with their laws as they stand (a
-    /// live change applies from its own frame on).
-    fn render_body(&mut self, a: usize, b: usize, gain: f32) {
+    /// Advance the keybed and pedal forces at the bridge and the directly
+    /// radiated body and case sounds up to the next event's frame.
+    fn render_mechanics(&mut self, a: usize, b: usize, gain: f32) {
         if self.board.is_none() || a >= b {
             return;
         }
+        self.render_knocks(a, b);
         if self.live.body != *self.body.law() {
             let law = self.live.body;
             self.body.set_law(&law);
@@ -1506,7 +1505,7 @@ impl Engine {
             // The action's knock renders from the start of the sub-block: it
             // waits for the note's own frame within it, then its delay. The
             // body's halo and the case's knock have rendered up to this
-            // frame (render_body).
+            // frame (render_mechanics).
             let within = self.now.saturating_sub(self.clock) as f64 / self.cfg.sample_rate;
             let tilt = crate::body::SpeedTilt::of(&self.live.body, note, vh);
             self.action.strike(note, self.live.noise.action * vh, within + self.live.noise.action_delay, tilt);

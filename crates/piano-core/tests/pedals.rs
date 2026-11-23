@@ -316,3 +316,21 @@ fn a_bass_key_repeated_under_the_pedal_does_not_tick() {
         assert!(least > -6.0, "{name}: a repeat of A1 adds {least:.1} dB over the first strike left to ring");
     }
 }
+
+#[test]
+fn keybed_and_pedal_impacts_wait_for_their_event_frame() {
+    use piano_core::engine::SUB_BLOCK;
+    use piano_core::instrument::region_of;
+
+    let offset = SUB_BLOCK - 1;
+    for (event, region) in [(on(60, 90), region_of(60)), (cc(64, 127), region_of(54))] {
+        let mut engine = Engine::with_instrument(EngineConfig::default(), instrument());
+        let mut output = [0.0; SUB_BLOCK];
+        engine.process(&[TimedEvent { frame: offset as u32, event }], &mut output);
+        let force = engine.bridge_force(region);
+        assert!(force[..offset].iter().all(|&x| x == 0.0), "bridge moved before {event:?}");
+        assert_ne!(force[offset], 0.0, "missing impact at {event:?}");
+        engine.process(&[], &mut output);
+        assert_ne!(engine.bridge_force(region)[0], 0.0, "impact did not carry across the block");
+    }
+}
