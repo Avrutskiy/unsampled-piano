@@ -1,0 +1,12 @@
+# Studio Grand with soundboard travel times included in the attack.
+hardness_slope_top = 0.20
+shank_freq_mid = 700.0
+
+[unison]
+width_treble = 7.5
+
+[soundboard]
+radiation_delays = true
+# Explicit values preserve the Studio Grand geometry when reading this section.
+bass_bridge_bow = 0.034
+main_string_slant = 8.0
