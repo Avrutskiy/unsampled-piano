@@ -12,6 +12,6 @@ The selected instrument uses the balanced, baked bridge transfer in `wave_grand_
 
 ## Reproducing the checkpoint
 
-The baked path runs offline with the balanced preset, velocity calibration, and a coefficient bank generated from the instrument. Re-bake after changing string construction or board geometry. The semi-infinite string assumption describes the initial transfer. Later reflections between finite strings remain approximate. [Build the bank and render a MIDI performance](../tools/wave_grand/README.md)
+The Liszt recording uses the offline renderer with the balanced preset, per-key touch calibration, and baked bridge coefficients. The standalone player and plug-in load the instrument geometry and voicing, then use their own live MIDI velocity mapping and sympathetic-string response. Re-bake after changing string construction or board geometry. The semi-infinite string assumption describes the initial transfer. Later reflections between finite strings remain approximate. [Build the bank and render a MIDI performance](../tools/wave_grand/README.md)
 
 For another instrument, choose the lid, microphones and room first. Compare bridge and microphone signals to locate a tonal problem, then check attack and held sound at soft, medium and hard strikes. Match note levels to hear timbre, retain common gain to judge register balance, and make the final decision in a pedaled phrase.
