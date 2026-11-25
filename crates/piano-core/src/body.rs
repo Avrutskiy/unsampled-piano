@@ -343,11 +343,15 @@ impl BodyBank {
     /// The hammer of `note` meets its string `offset` s after the start of
     /// the next [`Self::render`] call, at `speed` m/s.
     pub fn strike(&mut self, note: u8, speed: f64, offset: f64) {
+        self.strike_scaled(note, speed, offset, 1.0);
+    }
+
+    pub(crate) fn strike_scaled(&mut self, note: u8, speed: f64, offset: f64, gain: f64) {
         let law = self.law;
         if !law.enabled || law.gain <= 0.0 || !(21..=108).contains(&note) {
             return;
         }
-        let amp = law.gain * speed * 10f64.powf(law.slope * (note as f64 - 60.0) / 12.0 / 20.0);
+        let amp = gain * law.gain * speed * 10f64.powf(law.slope * (note as f64 - 60.0) / 12.0 / 20.0);
         let wait = ((offset + law.delay) * self.sample_rate).round().max(0.0) as u32;
         let sub = if self.rise >= STEPS { (1u32 << (self.rise / STEPS).ilog2()).min(SUB) } else { 1 };
         let next = Pending { key: note - 21, amp: amp as f32, wait, age: 0, rise: self.rise, sub };

@@ -1,0 +1,878 @@
+a4 = 440.0
+una_corda_softening = 0.6
+una_corda_shift = 1.0
+half_blow = 0.0
+mute_felt = 0.0
+repetition_time = 0.0
+repetition_floor = 0.5
+output_gain_db = 0.0
+limiter = 0.0
+limiter_ceiling_db = -1.0
+hardness = 0.96
+hardness_slope = 0.0
+hardness_slope_bass = 0.02
+hardness_slope_top = 0.15
+core_hardness = 0.6
+core_p = 4.5
+core_depth_bass = 0.0
+core_depth_mid = 0.38
+core_depth_treble = 0.24
+p_bass = 0.0
+p_offset = 0.0
+hysteresis = 0.6
+contact_width_scale = 1.75
+hammer_mass_scale = 1.195
+hammer_mass_slope = 0.005
+shank_share = 0.3
+shank_freq = 300.0
+shank_loss = 0.1
+shank_freq_mid = 700.0
+strike_ratio = 0.12
+strike_ratio_top = 0.05
+strike_ratio_spread = 0.0
+
+[velocity]
+vmin = 0.205
+vmax = 5.6
+curve = 0.78
+
+[inharmonicity]
+a_bass = -0.18196315369223673
+b_bass = -5.3700191182362955
+a_treble = 0.0823152850880731
+b_treble = -12.798195166451308
+
+[stretch]
+a_t = 5.1218919216082535
+k_t = 0.03115803384649574
+a_b = 0.006406899539025858
+k_b = 0.15509912753589133
+c = -4.619808714297248
+
+[temperament]
+kind = 0
+key = 0
+cents = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[losses]
+b1_slope = 0.055
+b1_offset = -5.1
+b2 = 6e-08
+b1_floor = 0.0
+wound_until = 41
+top_slope = 0.0
+top_from = 84
+winding = 0.0001
+winding_until = 40
+b2_top = 0.00000030
+b2_top_from = 84
+b2_high = 0.00000006
+b2_high_from = 104
+physical = false
+air_scale = 1.0
+delta_ve = 0.0045
+q_te = 0.000203
+
+[scale]
+len_c8 = 0.0494
+ratio_per_octave = 1.91
+break_note = 41
+len_a0 = 2.01
+tension = 750.0
+tension_by_key = true
+tension_curve = [[24.0, 1722.0], [26.0, 1798.0], [29.0, 1618.0], [33.0, 1190.0], [36.0, 915.0], [40.0, 741.0], [41.0, 799.0], [48.0, 759.0], [60.0, 741.0], [72.0, 696.0], [96.0, 670.0], [107.0, 588.0]]
+wound_lengths_by_key = true
+wound_length_curve = [[24.0, 2.007], [26.0, 1.975], [29.0, 1.91], [33.0, 1.76], [36.0, 1.6], [40.0, 1.378]]
+
+[unison]
+bichord_from = 29
+trichord_from = 34
+width_mid = 1.0
+width_treble = 5.0
+width_curve = 4.0
+width_bass = 0.0
+width_bass_until = 47
+hit_spread = 0.3
+soft_exponent = 1.0
+soft_speed = 2.75
+height_spread = 0.0001
+load_ramp = 36.0
+strike_spread = 0.0
+b_spread = 0.0
+
+[bridge]
+coupling_note = 60
+local_coupling = 1.0
+g_1k = 0.00046
+slope = 0.109
+b_over_g = 1.5
+
+[polarization]
+enabled = true
+h_coupling = 0.3
+cross = 0.438
+detune_cents = 0.3
+radiation = 0.1
+hammer_tilt = 0.05
+smooth = 0.0
+slope = -1.0
+slope_from = 130.81
+slope_to = 0.0
+bass = false
+bass_until = 40
+bass_fade = 8
+hammer_tilt_bass = 0.05
+radiation_bass = 0.1
+cross_bass = 0.438
+
+[soundboard]
+a = 2.04711
+b = 1.37052
+rho_h = 10.5
+dx = 4590.0
+dy = 2040.0
+loss_factor = 0.02
+loss_corner = 2500.0
+loss_low_corner = 200.0
+edge_loss = 0.001
+edge_depth = 0.15
+edge_corner = 400.0
+bridge_mass = 0.0
+series_stiffness = 20000000.0
+bridge_yield = true
+yield_conductance = 0.0007
+yield_corner = 2600.0
+bridge_stiffness = 470.0
+bridge_line_mass = 0.6
+bridge_spread = 0.3
+bridge_beam = 0.0
+impedance_slope = 0.0024
+impedance_slope_bass = 0.0076
+f_max = 20000.0
+piston_freq = 40.0
+piston_loss = 0.7
+piston_mass = 6.0
+piston_radiation = 0.003
+crown_freq = 60.0
+treble_bridge = [[0.012182, 0.030854], [0.063607, 0.235635], [0.201798, 0.42365], [0.462891, 0.589997], [0.802444, 0.709889]]
+bass_bridge = [[0.581568, 0.564082], [0.867585, 0.710443]]
+bass_bridge_bow = 0.035
+main_string_slant = 8.0
+string_sections = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 0.0]]
+bridge_keys = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+main_bridge_from = 41
+mics_relative = false
+mic_gain_db = -9.8
+outputs_per_mic = false
+radiate = true
+grid_step = 0.015
+back_depth = 0.6
+back_gain = 0.6
+wall_distance = 0.0
+wall_reflection = 0.9
+vertical = false
+case_open = 1.0
+case_panel_mass = 6.0
+lid_angle = 35.0
+lid_removed = false
+lid_hinge_height = 0.16
+lid_reflection = 0.85
+lid_transmission = 0.1
+lid_leak = 0.25
+string_load = 1.0
+string_load_free = 1.0
+exact_below = 1800.0
+outline = [[0.053496, 0.998418], [0.0, 0.001582], [0.113347, 0.0], [0.229343, 0.197785], [0.34428, 0.311709], [0.460805, 0.359968], [0.914725, 0.443038], [0.967691, 0.508703], [1.0, 0.743671], [0.95286, 1.0]]
+outline_below = 1500.0
+rib_spacing = 0.0
+rib_share = 0.0
+rib_jitter = 0.0
+scatter = 0.0
+scatter_corner = 1500.0
+scatter_step = 0.1
+scatter_height = 0.05
+scatter_shadow = 0.0
+case_field = true
+radiation_delays = true
+case_field_builds = true
+forced_radiation = true
+bridge_rocking = true
+bridge_height = 0.033
+mics = [{at = [0.7, -0.19, 0.67], pattern = 0.5, aim = [0.85, 0.65, 0.1], gain_db = 0.0, pan = -1.0}, {at = [1.0, -0.19, 0.67], pattern = 0.5, aim = [0.85, 0.65, 0.1], gain_db = 0.0, pan = 1.0}]
+
+[soundboard.structure]
+enabled = true
+air = true
+clamped = false
+edge_spring = 1500.0
+step = 0.01
+below = 3000.0
+grain_angle = 40.0
+spruce_density = 390.0
+spruce_el = 11600000000.0
+spruce_er = 900000000.0
+spruce_g = 750000000.0
+spruce_nu = 0.37
+spruce_gl = 720000000.0
+spruce_gr = 39000000.0
+bridge_density = 750.0
+bridge_el = 13700000000.0
+bridge_er = 2240000000.0
+bridge_g = 1610000000.0
+bridge_nu = 0.3
+bridge_gl = 1060000000.0
+bridge_gr = 460000000.0
+plate_center = 0.009
+plate_edge = 0.006
+plate_taper = 0.1
+ribs = [[0.006886, 0.136867, 0.082097, 0.000791, 0.026, 0.011], [0.020657, 0.228639, 0.135064, 0.022943, 0.028, 0.011], [0.027542, 0.350475, 0.172669, 0.089399, 0.028, 0.011], [0.030191, 0.46519, 0.204979, 0.154272, 0.031, 0.011], [0.035487, 0.587816, 0.242585, 0.219146, 0.032, 0.011], [0.041314, 0.70807, 0.286547, 0.272943, 0.035, 0.011], [0.04714, 0.843354, 0.338983, 0.316456, 0.035, 0.011], [0.052436, 0.982595, 0.404131, 0.348892, 0.035, 0.011], [0.123941, 0.998418, 0.474047, 0.36788, 0.035, 0.011], [0.207627, 0.998418, 0.549258, 0.379747, 0.035, 0.011], [0.291843, 0.998418, 0.626589, 0.393987, 0.035, 0.011], [0.384534, 0.998418, 0.710805, 0.412184, 0.035, 0.011], [0.471398, 0.998418, 0.790254, 0.424842, 0.035, 0.011], [0.5625, 0.998418, 0.869703, 0.439873, 0.035, 0.011], [0.652013, 0.998418, 0.946504, 0.471519, 0.035, 0.011], [0.738877, 0.998418, 0.98411, 0.552215, 0.036, 0.011], [0.819915, 0.998418, 0.997352, 0.676424, 0.036, 0.011], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0]]
+rib_feather = 0.15
+rib_tip = 0.004
+rib_width_treble = 0.022
+rib_width_bass = 0.026
+main_bridge_thickness = [[41.0, 0.055], [49.0, 0.0676523], [53.0, 0.0713166], [61.0, 0.0658026], [69.0, 0.0533248], [81.0, 0.0376593], [97.0, 0.0307847], [108.0, 0.029]]
+bass_bridge_thickness = [[21.0, 0.052], [32.0, 0.058], [40.0, 0.06]]
+bridge_width = 0.03
+bridge_ring = 0.1294
+strings = true
+strings_grip = true
+back_length = [[21.0, 0.24], [40.0, 0.18], [41.0, 0.22], [60.0, 0.105], [84.0, 0.058], [108.0, 0.045]]
+
+[damper]
+position = 0.14
+behind_strike = 0.06
+width = 0.02
+width_bass = 0.0
+node_floor = 0.15
+strength = 0.2
+strength_slope = 0.0
+contact_exponent = 1.5
+horizontal = 0.03
+grip_rise = false
+horizontal_high = 1.0
+node_floor_high = 0.5
+grip_corner = 500.0
+wedges = true
+wedge_until = 35
+wedge_strength = 0.09
+highest_note = 86
+dodge = false
+dodge_from = 39
+dodge_until = 42
+dodge_by = 0.015
+pedal_free = 0.3
+pedal_contact = 0.6
+pedal_curve = 1.2
+fall_time = 0.015
+lift_time = 0.005
+
+[sympathetic]
+seated_return = 0.18
+speaking_attack_gain = 0.056
+speaking_gain = 1.42
+listen_damped = true
+rear_attack_gain = 2.3
+rear_band_limit = 10000.0
+rear_bearing_spread = 0.19
+enabled = true
+max_freq = 5000.0
+gain = 1.0
+self_cancel = true
+brake = true
+rear = true
+rear_from = 33
+rear_loss = 13.0
+bridge_cut = false
+bridge_below = 10000.0
+
+[nonlinear]
+enabled = true
+young = 200000000000.0
+max_note = 64
+max_partial_hz = 5000.0
+max_long_hz = 8000.0
+long_loss = 0.005
+coupling = 0.3
+coupling_plain = 0.0
+coupling_corner = 1000.0
+strike_stretch = false
+strike_scale = 1.0
+
+[noise]
+keybed = 0.1051
+damper_mass = 0.002943
+damper_speed = 0.1
+damper_landing = 0.004
+pedal = 0.1472
+knock_time = 0.003
+action = 0.04204
+action_time = 0.25
+action_delay = 0.008
+case = 0.0
+case_low = 80.0
+case_time = 0.55
+
+[body]
+enabled = true
+gain = 9.358134850404329e-05
+slope = 11.0
+levels = [-9.0, -6.0, -5.0, -8.0, -10.5, -1.5, -11.5, -22.0]
+t60 = [2.5, 2.4, 2.35, 2.2, 2.03, 2.05, 1.95, 1.8]
+delay = 0.002
+rise = 0.012
+shared = 0.5
+speed_ref = 2.0
+speed_corner = 1300.0
+speed_low = [0.0, 0.0, 0.0, 1.22]
+speed_high = [0.0, 0.0, 0.0, 0.0]
+speed_halo = [1.0, 1.0, 1.0, 1.0]
+
+[room]
+enabled = true
+size = [18.0, 12.0, 6.0]
+piano = [5.0, 6.0, 0.9]
+absorption_low = 0.38
+absorption_high = 0.36
+order = 3
+tail_gain = 0.78
+directivity = 0.0
+
+[frame]
+enabled = true
+a = 2.24711
+b = 1.37052
+offset_x = -0.2
+agraffe_x = 0.05
+height = 0.08
+rho_h = 110.0
+stiffness = 250000.0
+loss_factor = 0.02
+back_depth = 0.05
+back_gain = 0.9
+solidity = 0.4
+f_max = 12000.0
+gain = 1.0
+coupling = 1.0
+capo_bar = true
+capo_from = 106
+duplex = true
+duplex_group = 3
+duplex_far = 0.03211899556257758
+duplex_near = 0.03097613841972044
+duplex_loss = 6.0
+
+[rim]
+enabled = true
+height = 0.4
+thickness = 0.075
+top = 0.16
+young = 12000000000.0
+shear = 1000000000.0
+density = 650.0
+loss_factor = 0.02
+k_max = 8
+f_max = 3000.0
+couple_f_max = 2000.0
+inner_gain = 0.5
+follows_outline = false
+gain = 1.0
+
+[macros]
+tone = 0.0
+touch = 0.0
+sustain = 0.0
+resonance = 0.0
+release = 0.0
+unisons = 0.0
+mechanism = 0.0
+size = 0.0
+lid = 0.0
+space = 0.0
+stretch = 0.0
+
+[key_voicing]
+
+[key_voicing.21]
+level_db = [7.11517, 8.50792, 10.0761]
+string_loss_scale = 4.6
+strike_partials_db = [5.729, 0.975, 3.378, 3.588, -8.0, -8.0, 3.79, -6.998]
+felt_stiffness_scale = 0.75
+strike_offset = 0.0020000000000000018
+upper_strike_cut_db = [0.0, 0.0, 0]
+bridge_coupling_scale = 0.48
+wound_core_mm = 2.3
+
+[key_voicing.22]
+level_db = [1.96705, 3.27631, 4.30256]
+string_loss_scale = 1.55
+strike_partials_db = [5.157, 0.715, 1.074, 4.923, -3.213, -7.018, 8.0, -6.339]
+wound_core_mm = 2.214688
+
+[key_voicing.23]
+level_db = [0.82629, 1.74623, 2.89654]
+string_loss_scale = 1.55
+strike_partials_db = [6.329, -5.99, 0.269, 0.907, -8.0, 3.906, 3.587, -4.696]
+wound_core_mm = 2.093334
+
+[key_voicing.24]
+level_db = [3.43972, 3.69379, 4.05542]
+string_loss_scale = 1.55
+strike_partials_db = [8.0, -3.607, 5.391, -4.613, -8.0, 8.0, -2.045, 1.759]
+wound_core_mm = 1.950151
+
+[key_voicing.25]
+level_db = [2.7666, 2.88982, 3.52994]
+string_loss_scale = 1.55
+strike_partials_db = [5.801, 0.618, 6.599, -5.103, -8.0, 7.502, -4.489, 0.0]
+wound_core_mm = 1.801519
+
+[key_voicing.26]
+level_db = [0.93601, 1.52455, 2.59104]
+string_loss_scale = 1.55
+strike_partials_db = [3.369, -0.351, 4.757, -0.924, -1.257, -3.171, 5.898, -8.0]
+wound_core_mm = 1.659085
+
+[key_voicing.27]
+level_db = [0.52409, 1.22236, 2.71943]
+string_loss_scale = 1.55
+strike_partials_db = [1.94, -0.07, 5.455, -8.0, 1.379, 5.092, -4.284, -4.83]
+wound_core_mm = 1.515241
+
+[key_voicing.28]
+level_db = [-0.38223, 0.1483, 1.13725]
+string_loss_scale = 1.55
+strike_partials_db = [3.421, 1.334, 0.693, -11.0, 0.549, -4.056, -3.262, -6.824]
+wound_core_mm = 1.406338
+
+[key_voicing.29]
+level_db = [1.17477, 1.77958, 2.76628]
+string_loss_scale = 1.55
+strike_partials_db = [-4.567, 1.858, -2.53, -1.488, 5.664, -2.292, 0.991, -5.417]
+
+[key_voicing.30]
+level_db = [1.4704, 1.97671, 2.7558]
+strike_partials_db = [0.006, -3.784, 2.728, -0.121, 5.356, -2.091, 4.929, -1.96]
+
+[key_voicing.31]
+level_db = [-0.17474, 0.33133, 1.18846]
+strike_partials_db = [-2.147, 2.17, 1.943, -2.084, -6.148, -5.665, 4.952, -1.617]
+
+[key_voicing.32]
+level_db = [0.57829, 0.92425, 1.59359]
+strike_partials_db = [-5.81, 3.788, -3.873, 2.92, -3.504, -1.474, 2.653, -7.392]
+
+[key_voicing.33]
+level_db = [2.18535, 1.89458, 3.20145]
+strike_partials_db = [0.992, 5.123, -6.984, 4.852, -3.275, -3.857, 2.623, 1.7]
+
+[key_voicing.34]
+level_db = [2.81119, 2.50174, 2.92228]
+bridge_coupling_scale = 0.78
+strike_partials_db = [-8.0, 8.0, -3.923, -4.017, -4.881, 4.971, 2.839, 4.193]
+
+[key_voicing.35]
+level_db = [3.474, 3.01161, 3.47179]
+bridge_coupling_scale = 0.78
+strike_partials_db = [-8.0, 8.0, -1.168, -8.0, -4.305, -0.605, -1.03, 6.86]
+
+[key_voicing.36]
+level_db = [0.53668, 1.2318, 2.18202]
+strike_offset = -0.031
+strike_partials_db = [-8.0, 6.272, 0.621, -7.015, 1.394, -7.717, -1.097, -8.0]
+
+[key_voicing.37]
+level_db = [0.75032, 1.60395, 2.69098]
+strike_partials_db = [1.505, 0.662, 0.125, -7.744, 7.033, -4.971, 0.206, 0.141]
+
+[key_voicing.38]
+level_db = [-0.36263, 0.04068, 0.43205]
+strike_partials_db = [2.019, 1.031, -2.896, -6.818, -3.812, -1.767, 1.64, 1.122]
+
+[key_voicing.39]
+level_db = [1.36129, 1.62929, 2.14564]
+bridge_coupling_scale = 0.78
+strike_partials_db = [1.929, -3.785, -2.897, 2.563, 1.983, -4.971, 7.358, 2.372]
+
+[key_voicing.40]
+level_db = [1.9474, 2.07446, 2.5256]
+bridge_coupling_scale = 0.78
+strike_partials_db = [1.082, -7.188, -0.787, 4.213, -1.338, -0.061, 6.315, 4.566]
+
+[key_voicing.41]
+level_db = [1.34555, 1.71101, 2.36838]
+strike_partials_db = [1.549, -3.09, -2.167, 2.654, -2.589, 0.261, 8.0, 1.198]
+
+[key_voicing.42]
+level_db = [1.34789, 1.8177, 2.44719]
+
+[key_voicing.43]
+level_db = [1.36168, 1.66749, 2.27872]
+strike_partials_db = [1.95, 2.044, -8.0, -2.351, -1.798, 0.27, 8.0, -0.393]
+
+[key_voicing.44]
+level_db = [1.98085, 2.04671, 2.54688]
+
+[key_voicing.45]
+level_db = [2.62045, 2.74821, 3.11937]
+strike_partials_db = [-0.055, 1.695, -3.17, 0.131, 1.786, 3.567, 2.864, 2.022]
+
+[key_voicing.46]
+level_db = [2.38445, 2.61589, 3.1958]
+
+[key_voicing.47]
+level_db = [2.3817, 2.45997, 2.98232]
+bridge_coupling_scale = 0.78
+strike_partials_db = [0.156, -0.746, -0.471, 1.956, 1.911, 1.484, 2.027, -0.658]
+
+[key_voicing.48]
+level_db = [2.72275, 2.87047, 3.34613]
+bridge_coupling_scale = 0.78
+strike_partials_db = [0.46, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+string_loss_scale = 2.0
+
+[key_voicing.49]
+level_db = [3.29467, 3.71063, 4.54683]
+bridge_coupling_scale = 0.78
+strike_partials_db = [1.425, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[key_voicing.50]
+level_db = [2.93121, 2.80549, 3.31596]
+bridge_coupling_scale = 0.78
+strike_partials_db = [2.137, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[key_voicing.51]
+level_db = [5.85114, 5.90722, 7.17509]
+strike_partials_db = [3.0, -4.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0]
+strike_offset = -0.04
+
+[key_voicing.52]
+level_db = [6.11185, 6.05642, 6.48158]
+string_loss_scale = 1.55
+strike_partials_db = [1.623, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+bridge_coupling_scale = 0.62
+
+[key_voicing.53]
+level_db = [4.06437, 3.84556, 4.13781]
+string_loss_scale = 3.1
+strike_partials_db = [0.59, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[key_voicing.54]
+level_db = [5.79903, 5.57267, 6.15802]
+bridge_coupling_scale = 0.4836
+
+[key_voicing.55]
+level_db = [3.74088, 3.3179, 3.76946]
+string_loss_scale = 2.0
+
+[key_voicing.56]
+level_db = [3.91908, 3.60454, 4.27956]
+bridge_coupling_scale = 0.4836
+
+[key_voicing.57]
+level_db = [4.64735, 3.71548, 3.99909]
+string_loss_scale = 3.1
+
+[key_voicing.58]
+level_db = [5.77757, 5.18051, 5.63825]
+string_loss_scale = 1.55
+bridge_coupling_scale = 0.62
+
+[key_voicing.59]
+level_db = [4.03041, 3.93037, 4.7662]
+strike_offset = 0.012
+string_loss_scale = 1.55
+bridge_coupling_scale = 0.62
+
+[key_voicing.60]
+level_db = [5.28041, 4.45753, 5.05082]
+bridge_coupling_scale = 0.62
+
+[key_voicing.61]
+level_db = [3.02253, 0.94231, 1.37603]
+string_loss_scale = 1.55
+strike_offset = -0.022
+
+[key_voicing.62]
+level_db = [1.83258, 0.43776, 0.93697]
+string_loss_scale = 2.0
+
+[key_voicing.63]
+level_db = [1.81402, 1.30063, 2.24047]
+string_loss_scale = 3.1
+
+[key_voicing.64]
+level_db = [0.60573, -0.22538, 0.83696]
+strike_offset = 0.01
+string_loss_scale = 1.55
+
+[key_voicing.65]
+level_db = [1.15323, -0.09983, 0.64341]
+string_loss_scale = 3.1
+
+
+strike_offset = 0.04
+
+bridge_coupling_scale = 0.72
+[key_voicing.66]
+level_db = [0.13288, -0.55205, 0.36701]
+string_loss_scale = 3.1
+strike_partials_db = [0.0, 0.0, -3.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[key_voicing.67]
+level_db = [1.56681, 0.52701, 1.36604]
+string_loss_scale = 1.55
+bridge_coupling_scale = 0.62
+
+[key_voicing.68]
+level_db = [-0.44965, -0.73587, 0.33964]
+strike_offset = 0.012
+string_loss_scale = 3.1
+
+[key_voicing.69]
+level_db = [-0.26013, -1.21476, -0.34749]
+strike_offset = -0.012
+bridge_coupling_scale = 1.6
+
+[key_voicing.70]
+level_db = [1.56768, 0.28294, 1.21718]
+strike_offset = 0.034
+string_loss_scale = 1.55
+
+[key_voicing.71]
+level_db = [3.38519, 1.90528, 2.2939]
+string_loss_scale = 1.55
+strike_partials_db = [0.0, 0.0, -3.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+bridge_coupling_scale = 0.62
+
+[key_voicing.72]
+level_db = [4.19616, 2.83419, 3.4428]
+bridge_coupling_scale = 0.47288745
+strike_partials_db = [0.0, 0.0, 0.0, -2.63, 0.0, 0.0, 0.0, 0.0]
+string_loss_scale = 0.95093043
+
+[key_voicing.73]
+level_db = [3.70095, 1.78804, 2.2252]
+string_loss_scale = 2.61459007
+strike_partials_db = [0.0, 0.0, 0.0, 0.0, -3.0, 0.0, 0.0, 0.0]
+bridge_coupling_scale = 0.92698509
+
+[key_voicing.74]
+level_db = [1.52742, -0.14307, 0.25623]
+strike_offset = -0.012
+bridge_coupling_scale = 0.67838858
+felt_stiffness_scale = 0.55
+string_loss_scale = 0.73088641
+
+[key_voicing.75]
+level_db = [2.09622, -0.71756, -0.9147]
+strike_offset = -0.034
+string_loss_scale = 1.00478872
+strike_partials_db = [0.0, -3.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+bridge_coupling_scale = 0.82448960
+
+[key_voicing.76]
+unison_cents = [-0.395801383455192, -0.0033322476527228306, 0.18135911037196856]
+level_db = [4.9999, 2.83452, 2.88929]
+strike_offset = -0.012
+string_loss_scale = 0.95548417
+bridge_coupling_scale = 0.49985998
+
+[key_voicing.77]
+level_db = [3.4645, 1.0516, 1.03731]
+strike_offset = -0.012
+string_loss_scale = 0.89067425
+bridge_coupling_scale = 0.78140390
+
+[key_voicing.78]
+level_db = [7.64288, 4.98954, 4.87891]
+strike_offset = 0.012
+string_loss_scale = 0.78174930
+bridge_coupling_scale = 0.45713578
+
+[key_voicing.79]
+level_db = [5.7725, 2.93164, 2.66293]
+strike_offset = -0.012
+string_loss_scale = 0.72872372
+bridge_coupling_scale = 0.71461548
+
+[key_voicing.80]
+level_db = [8.89029, 5.83562, 5.32902]
+strike_offset = -0.012
+bridge_coupling_scale = 0.54084268
+string_loss_scale = 0.87871098
+
+[key_voicing.81]
+level_db = [5.99608, 2.64526, 2.04753]
+string_loss_scale = 0.63640357
+bridge_coupling_scale = 0.67279118
+
+[key_voicing.82]
+level_db = [6.42831, 3.26358, 2.75883]
+strike_offset = -0.034
+string_loss_scale = 0.75856727
+bridge_coupling_scale = 0.72750009
+
+[key_voicing.83]
+level_db = [7.127, 3.42445, 2.76318]
+string_loss_scale = 1.05104811
+strike_offset = -0.022
+bridge_coupling_scale = 0.84117853
+
+[key_voicing.84]
+level_db = [6.56939, 1.86681, 0.85641]
+bridge_coupling_scale = 0.70947246
+string_loss_scale = 0.80826243
+
+[key_voicing.85]
+level_db = [7.86288, 2.62034, 1.50082]
+string_loss_scale = 0.57607185
+bridge_coupling_scale = 0.78227709
+
+[key_voicing.86]
+unison_cents = [-0.47836760091153135, -0.023442687717086932, 0.48955774631069077]
+level_db = [8.49153, 3.01253, 1.79853]
+felt_stiffness_scale = 0.72
+bridge_coupling_scale = 0.52477712
+string_loss_scale = 0.82116590
+
+[key_voicing.87]
+level_db = [7.48772, 1.35975, 0.01505]
+string_loss_scale = 0.48633864
+bridge_coupling_scale = 0.72547166
+
+[key_voicing.88]
+level_db = [10.46547, 3.95094, 2.46002]
+bridge_coupling_scale = 0.61017613
+strike_partials_db = [0.0, -1.8586, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+string_loss_scale = 0.57607185
+
+[key_voicing.89]
+level_db = [14.59183, 7.37525, 5.81392]
+strike_partials_db = [0.0, 1.4876, 0.7393, 0.0, 0.0, 0.0, 0.0, 0.0]
+string_loss_scale = 0.59367676
+bridge_coupling_scale = 0.79283185
+
+[key_voicing.90]
+level_db = [11.04882, 3.54958, 1.77114]
+string_loss_scale = 0.62781143
+bridge_coupling_scale = 0.81281281
+
+[key_voicing.91]
+level_db = [11.64429, 3.5776, 1.5947]
+felt_stiffness_scale = 0.72
+strike_partials_db = [0.0, 0.2562, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+string_loss_scale = 0.64699752
+bridge_coupling_scale = 0.82377956
+
+[key_voicing.92]
+level_db = [9.93466, 1.28704, -0.78174]
+string_loss_scale = 0.63794651
+bridge_coupling_scale = 0.81862882
+
+[key_voicing.93]
+level_db = [7.98538, -0.25166, -2.12084]
+strike_offset = -0.012
+string_loss_scale = 0.95615005
+strike_partials_db = [0.0, -3.774, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+bridge_coupling_scale = 0.80647588
+
+[key_voicing.94]
+level_db = [15.86206, 6.70001, 4.76379]
+string_loss_scale = 0.59262584
+bridge_coupling_scale = 0.79220670
+
+[key_voicing.95]
+level_db = [10.78553, 2.83784, 1.53305]
+felt_stiffness_scale = 0.72
+string_loss_scale = 0.88822373
+strike_partials_db = [0.0, -6.0185, -3.9655, 0.0, 0.0, 0.0, 0.0, 0.0]
+strike_offset = -0.022
+bridge_coupling_scale = 0.78044601
+
+[key_voicing.96]
+level_db = [15.28485, 9.21572, 7.03628]
+strike_offset = -0.012
+string_loss_scale = 0.87579814
+strike_partials_db = [0.0, -9.0, -9.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+felt_stiffness_scale = 0.55
+bridge_coupling_scale = 0.77556621
+
+[key_voicing.97]
+level_db = [14.80694, 4.99919, 2.46631]
+strike_offset = -0.012
+string_loss_scale = 1.14278237
+strike_partials_db = [0.013, -4.6533, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+felt_stiffness_scale = 0.55
+bridge_coupling_scale = 0.87310748
+
+[key_voicing.98]
+level_db = [10.43837, 0.10896, -3.0806]
+strike_offset = -0.012
+string_loss_scale = 1.49115587
+strike_partials_db = [0.0, -2.6004, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+felt_stiffness_scale = 0.55
+bridge_coupling_scale = 0.98291629
+
+[key_voicing.99]
+level_db = [3.67757, -5.54561, -8.26035]
+strike_offset = -0.012
+string_loss_scale = 1.49115587
+strike_partials_db = [0.0, -3.7253, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+bridge_coupling_scale = 0.98291629
+
+[key_voicing.100]
+level_db = [9.38473, 0.26097, -2.93283]
+felt_stiffness_scale = 0.72
+string_loss_scale = 1.49115587
+strike_partials_db = [0.0, -2.0805, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+bridge_coupling_scale = 0.98291629
+
+[key_voicing.101]
+level_db = [10.34577, 1.05348, -2.15731]
+strike_offset = -0.012
+bridge_coupling_scale = 1.25542586
+strike_partials_db = [0.0, 0.2503, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+string_loss_scale = 0.95739303
+
+[key_voicing.102]
+level_db = [14.3756, 5.43362, 1.8876]
+strike_offset = -0.012
+string_loss_scale = 1.47679726
+strike_partials_db = [0.0, 2.053, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+bridge_coupling_scale = 0.97869117
+
+[key_voicing.103]
+level_db = [13.43067, 7.87079, 4.48401]
+strike_offset = -0.012
+string_loss_scale = 1.22879592
+bridge_coupling_scale = 0.90177711
+
+[key_voicing.104]
+level_db = [11.87398, 4.46697, 0.79969]
+strike_offset = -0.012
+string_loss_scale = 1.14441252
+bridge_coupling_scale = 0.91152564
+
+[key_voicing.105]
+level_db = [13.22356, 5.77976, 2.16311]
+strike_offset = -0.012
+string_loss_scale = 0.96583905
+bridge_coupling_scale = 0.93519954
+
+[key_voicing.106]
+level_db = [10.02555, -1.52463, -5.4114]
+felt_stiffness_scale = 0.72
+string_loss_scale = 0.50890298
+bridge_coupling_scale = 0.96426171
+
+[key_voicing.107]
+level_db = [9.27829, -3.33811, -8.10766]
+felt_stiffness_scale = 1.296
+string_loss_scale = 0.66571578
+bridge_coupling_scale = 0.98930526
+
+[key_voicing.108]
+level_db = [11.16899, -3.13484, -10.04857]
+felt_stiffness_scale = 0.8999999999999999
+string_loss_scale = 0.31200000
+bridge_coupling_scale = 1.00000000

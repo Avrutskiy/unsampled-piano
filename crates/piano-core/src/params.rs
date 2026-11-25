@@ -611,6 +611,11 @@ impl UnisonLaw {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(default))]
 pub struct BridgeLaw {
+    /// MIDI key whose speaking strings use the local board transformer.
+    pub coupling_note: u8,
+    /// Force delivered to the board and motion returned to the string,
+    /// relative to the ordinary attachment. One is the original model.
+    pub local_coupling: f64,
     pub g_1k: f64,
     pub slope: f64,
     pub b_over_g: f64,
@@ -618,7 +623,7 @@ pub struct BridgeLaw {
 
 impl BridgeLaw {
     /// b_over_g calibrated on the ESPRIT statistics (tools/unison_grid.py).
-    pub const SALAMANDER_C5: Self = Self { g_1k: 4.6e-4, slope: 0.109, b_over_g: 1.5 };
+    pub const SALAMANDER_C5: Self = Self { coupling_note: 60, local_coupling: 1.0, g_1k: 4.6e-4, slope: 0.109, b_over_g: 1.5 };
 
     pub fn admittance(&self, f: f64) -> crate::complex::C64 {
         let g = self.g_1k * (f / 1000.0).powf(self.slope);
@@ -1416,6 +1421,31 @@ pub struct SympatheticLaw {
     /// ends on the bridge's pins and on the plate.
     #[cfg_attr(feature = "serde", serde(default = "rear_loss"))]
     pub rear_loss: f64,
+    /// Fraction of each rear span removed by staggering the bearings across a unison.
+    /// At zero, the equal rear lengths retain their original common-mode response.
+    pub rear_bearing_spread: f64,
+    /// Optional frequency limit for the rear lengths alone (Hz).
+    pub rear_band_limit: Option<f64>,
+    /// Additional one-way strike excitation of the rear lengths through board motion.
+    pub rear_attack_gain: f64,
+    /// Compute the response of the speaking strings even when their dampers are seated.
+    pub listen_damped: bool,
+    /// Relative return to the bridge of a listening string under a seated damper.
+    pub seated_return: f64,
+    /// Relative coupling of speaking lengths, independent of the rear lengths.
+    pub speaking_gain: f64,
+    /// Semitones from the nearest held key where sympathetic input falls by half.
+    /// Zero disables distance weighting.
+    pub speaking_distance_half_width: f64,
+    /// Extra strike-driven board acceleration heard by unheld speaking strings.
+    pub speaking_attack_gain: f64,
+    /// Isolate the sympathetic speaking-string response of one key for measurement.
+    pub speaking_listen_key: Option<u8>,
+
+    /// Optional rear bearing position, as a pitch offset from a speaking-string
+    /// partial. The bearing subdivides the existing bridge-to-hitch length.
+    #[cfg_attr(feature = "serde", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub rear_harmonic_offset_cents: Option<f64>,
     /// A CPU economy: the board's modes at and above `bridge_below` only
     /// radiate. The strings hear the bridge through the modes below it (the
     /// listening strings run their partials below `max_freq`, the rear
@@ -1457,7 +1487,7 @@ fn bridge_below() -> f64 {
 impl SympatheticLaw {
     /// `rear_from` B3: on a concert grand the rear lengths of the top fifty
     /// keys or so are bare, the others lie under felt.
-    pub const DEFAULT: Self = Self { enabled: true, max_freq: 5000.0, gain: 1.0, self_cancel: true, brake: true, rear: false, rear_from: 59, rear_loss: 0.0, bridge_cut: false, bridge_below: 10_000.0 };
+    pub const DEFAULT: Self = Self { enabled: true, max_freq: 5000.0, gain: 1.0, self_cancel: true, brake: true, rear: false, rear_from: 59, rear_loss: 0.0, rear_bearing_spread: 0.0, rear_band_limit: None, rear_attack_gain: 0.0, listen_damped: false, seated_return: 1.0, speaking_gain: 1.0, speaking_distance_half_width: 0.0, speaking_attack_gain: 0.0, speaking_listen_key: None, rear_harmonic_offset_cents: None, bridge_cut: false, bridge_below: 10_000.0 };
 }
 
 /// Partial frequency of a stiff string: f_k = k·f0·sqrt(1 + B·k²).
@@ -1584,6 +1614,10 @@ pub struct NoteParams {
     /// Each string's departure from `strike_pos` (share of the length; first
     /// `strings` entries, zero mean).
     pub strike_offset: [f64; 3],
+    /// Linear calibration of the hammer contact profile for the first eight speaking partials.
+    pub strike_partial_gain: [f64; 8],
+    /// Soft-strike spectral cuts for partials 7, 8, and 9 upward.
+    pub upper_strike_cut_db: [f32; 3],
     /// Width of the felt contact patch (m).
     pub contact_width: f64,
     pub hammer: HammerParams,
@@ -1645,6 +1679,9 @@ impl VelocityLaw {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize), serde(default))]
 pub struct PianoModel {
+    /// Per-key mechanical adjustments to the register laws, fixed across all strikes.
+    #[cfg_attr(feature = "serde", serde(default, skip_serializing_if = "crate::key_voicing::KeyVoicingTable::is_empty"))]
+    pub key_voicing: crate::key_voicing::KeyVoicingTable,
     pub a4: f64,
     pub velocity: VelocityLaw,
     pub inharmonicity: InharmonicityLaw,
@@ -1805,6 +1842,7 @@ fn splitmix_unit(x: u64) -> f64 {
 impl Default for PianoModel {
     fn default() -> Self {
         Self {
+            key_voicing: Default::default(),
             a4: 440.0,
             velocity: VelocityLaw::DEFAULT,
             inharmonicity: InharmonicityLaw::SALAMANDER_C5,
@@ -1943,6 +1981,18 @@ impl PianoModel {
         })
     }
 
+    /// Intrinsic transverse amplitude loss rate on this key's string, in 1/s.
+    pub fn string_loss_on(&self, note: u8, freq: f64, geo: &StringGeometry) -> f64 {
+        self.key_voicing.at(note).string_loss_scale * self.losses.sigma_on(note, freq, geo)
+    }
+
+    /// Time (s) for the fundamental of the unloaded string to fall by 60 dB.
+    pub fn string_t60(&self, note: u8) -> f64 {
+        let p = self.note(note);
+        let geo = StringGeometry::of(&p, self.nonlinear.young);
+        3.0 * std::f64::consts::LN_10 / self.string_loss_on(note, p.f0, &geo)
+    }
+
     /// The head-against-shank mode of key `m` (MIDI), Hz.
     pub fn shank_freq_at(&self, m: f64) -> f64 {
         if self.shank_freq_mid <= 0.0 {
@@ -1953,6 +2003,7 @@ impl PianoModel {
     }
 
     pub fn note(&self, note: u8) -> NoteParams {
+        let voicing = self.key_voicing.at(note);
         let f0 = note_freq(note, self.a4) * 2f64.powf((self.stretch.cents(note) + self.temperament.cents(note)) / 1200.0);
         let length = self.scale.length(note);
         let tension = if self.scale.tension_by_key {
@@ -1965,6 +2016,7 @@ impl PianoModel {
         let m = note as f64;
         let strike_law = if m <= 84.0 { self.strike_ratio } else { self.strike_ratio - self.strike_ratio_top * (m - 84.0) / 24.0 };
         let strike_pos = if self.strike_ratio_spread != 0.0 { strike_law + self.strike_ratio_spread * key_offset(note) } else { strike_law };
+        let strike_pos = if voicing.strike_offset == 0.0 { strike_pos } else { (strike_pos + voicing.strike_offset).clamp(0.0, 1.0) };
         let contact_width = (0.008 - 0.004 * (m - 21.0) / 87.0) * self.contact_width_scale;
         let mut hammer = hammer_stulov(note);
         hammer.mass_kg *= self.hammer_mass_scale + self.hammer_mass_slope * (m - 60.0);
@@ -1984,6 +2036,7 @@ impl PianoModel {
         // of the top felt.
         let base_q0 = hammer.q0;
         hammer.q0 *= self.hardness * (slope * (key - 40.0) + self.hardness_slope_top * (key - 64.0).max(0.0)).exp();
+        hammer.q0 *= voicing.felt_stiffness_scale;
         hammer.p += self.p_offset + self.p_bass * ((40.0 - key) / 39.0).max(0.0);
         hammer.core_q = self.core_hardness * base_q0;
         hammer.core_p = self.core_p;
@@ -1996,7 +2049,7 @@ impl PianoModel {
         };
         hammer.core_depth = depth * 1e-3;
         hammer.alpha *= self.hysteresis;
-        NoteParams {
+        let mut np = NoteParams {
             f0,
             b: self.inharmonicity.b(note),
             length,
@@ -2004,11 +2057,24 @@ impl PianoModel {
             mu,
             strike_pos,
             strike_offset: self.unison.strike_offsets(note),
+            upper_strike_cut_db: voicing.upper_strike_cut_db,
+            strike_partial_gain: voicing.strike_partials_db.map(|db| 10f64.powf(f64::from(db) / 20.0)),
             contact_width,
             hammer,
             strings: self.unison.strings(note),
-            detune: self.unison.detune(note),
+            detune: voicing.unison_cents.unwrap_or_else(|| self.unison.detune(note)),
+        };
+        if let Some(mm) = voicing.wound_core_mm {
+            use std::f64::consts::PI;
+            let young = self.nonlinear.young;
+            let outer = StringGeometry::of(&np, young).d_outer;
+            let d = (mm * 0.001).min(outer);
+            let copper = COPPER_DENSITY * PI.powi(2) * (outer * outer - d * d) / 16.0;
+            np.mu = STEEL_DENSITY * PI * d * d / 4.0 + copper;
+            np.tension = np.mu * (2.0 * np.length * np.f0).powi(2);
+            np.b = PI.powi(3) * young * d.powi(4) / (64.0 * np.tension * np.length.powi(2));
         }
+        np
     }
 }
 

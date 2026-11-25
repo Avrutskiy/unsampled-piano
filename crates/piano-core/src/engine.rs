@@ -9,6 +9,7 @@
 
 use std::sync::Arc;
 
+use crate::sympathetic_strike::SympatheticStrike;
 use crate::board::{BoardBank, PARTS, PROBES};
 use crate::denormal::DenormalGuard;
 use crate::instrument::{region_of, Instrument, MICS, REGIONS};
@@ -61,6 +62,12 @@ struct Knock {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Event {
     NoteOn { note: u8, velocity: u8 },
+    /// A MIDI strike with an alternate inner felt coefficient for this contact.
+    FeltStrike { note: u8, velocity: u8, core_scale: f64 },
+    TouchStrike { note: u8, physical_velocity: f64, trim_db: f64, firmer: bool },
+    /// Hammer launch speed (m/s) before the soft pedal and repetition action.
+    /// A finite positive speed strikes a piano key; other values are ignored.
+    Strike { note: u8, speed_mps: f64 },
     NoteOff { note: u8, velocity: u8 },
     Control { cc: u8, value: u8 },
     AllNotesOff,
@@ -279,6 +286,12 @@ pub struct Engine {
     /// Per key: down, or the time it was released (None: at rest since
     /// long enough or never played), for the upright's repetition.
     key_down: [bool; 128],
+    /// Optional per-key block ports used by the offline wave-coupling renderer.
+    wave_in: Vec<Vec<f32>>,
+    wave_force: Vec<Vec<f32>>,
+    wave_offset: usize,
+    distance_keys: [bool; 128],
+    listening_weight: [f32; 128],
     key_up_at: [Option<u64>; 128],
     /// Time of each key's last note-on (duplicates, see DUPLICATE_S).
     key_down_at: [u64; 128],
@@ -308,6 +321,7 @@ pub struct Engine {
     /// (`sympathetic.rear`): they listen to the bridge there and push on
     /// the sympathetic board, whatever the dampers do.
     rear: Vec<ModalBank>,
+    sympathetic_strike: Option<SympatheticStrike>,
     /// The low modes driven at each key (Instrument::low) and their
     /// profile inputs for the current block. The sympathetic forces keep
     /// the regions: a diffuse halo, where the exact drive changes nothing
@@ -401,7 +415,11 @@ impl Engine {
     pub fn with_instrument(cfg: EngineConfig, inst: Arc<Instrument>) -> Self {
         assert_eq!(inst.sample_rate, cfg.sample_rate);
         let cfg = EngineConfig { polyphony: cfg.quality.polyphony(cfg.polyphony), ..cfg };
-        let shortcuts = cfg.quality.shortcuts();
+        let mut shortcuts = cfg.quality.shortcuts();
+        if inst.model.sympathetic.listen_damped {
+            shortcuts.listen_all = true;
+            shortcuts.deaf_above = f64::INFINITY;
+        }
         let capacity = inst.table.capacity();
         let action_time = inst.model.noise.action_time;
         let (case_low, case_time) = (inst.model.noise.case_low, inst.model.noise.case_time);
@@ -417,6 +435,11 @@ impl Engine {
                 if rocking {
                     v.reserve_rocking();
                 }
+                if inst.model.sympathetic.speaking_distance_half_width > 0.0 {
+                    v.distance_input.resize(cfg.max_block, 0.0);
+                }
+                v.seated_return = inst.model.sympathetic.seated_return.clamp(0.0, 1.0) as f32;
+                if inst.model.sympathetic.rear_attack_gain > 0.0 || inst.model.sympathetic.speaking_attack_gain > 0.0 { v.rear_contact.resize(SUB_BLOCK, 0.0); }
                 if forced > 0 {
                     v.reserve_forced(forced);
                 }
@@ -479,6 +502,7 @@ impl Engine {
         let noise_path = |m: usize| noise_paths.get(m).map_or((1.0, 0), |&(g, d)| (g, d.min(max_delay)));
         let noise_span = (0..MICS).map(|m| noise_path(m).1).max().unwrap_or(0);
         let zones = inst.zones.filter(|z| z.mics == mics.len());
+        let sympathetic_strike = SympatheticStrike::new(&inst, cfg.sample_rate);
         let live = inst.model;
         let base = inst.source;
         let mut e = Self {
@@ -498,6 +522,9 @@ impl Engine {
             mute_down: false,
             now: 0,
             key_down: [false; 128],
+            wave_in: Vec::new(), wave_force: Vec::new(), wave_offset: 0,
+            distance_keys: [false; 128],
+            listening_weight: [1.0; 128],
             key_up_at: [None; 128],
             key_down_at: [0; 128],
             doubled: 0,
@@ -513,6 +540,7 @@ impl Engine {
             board,
             board_sym,
             rear,
+            sympathetic_strike,
             board_low,
             basis: vec![vec![0.0; SUB_BLOCK]; n_basis],
             region_all: vec![vec![0.0; SUB_BLOCK]; if board_top.is_some() { REGIONS } else { 0 }],
@@ -773,6 +801,20 @@ impl Engine {
         self.process_into(events, out, per_mic);
     }
 
+    /// Optional offline port: primary transverse force at each bridge contact.
+    pub fn enable_wave_capture(&mut self) {
+        self.wave_force = vec![vec![0.0; self.cfg.max_block]; 88];
+    }
+    pub fn wave_forces(&self) -> &[Vec<f32>] { &self.wave_force }
+    /// Acceleration of each bridge contact driven by all *other* keys.
+    /// The caller sets self_cancel=false since the convolution excludes the diagonal.
+    pub fn wave_input(&mut self) -> &mut [Vec<f32>] {
+        if self.wave_in.is_empty() {
+            self.wave_in = vec![vec![0.0; self.cfg.max_block]; 88];
+        }
+        &mut self.wave_in
+    }
+
     /// Whether the set-up asks for one output per microphone.
     pub fn per_mic(&self) -> bool {
         self.per_mic
@@ -787,10 +829,12 @@ impl Engine {
         assert!(len <= self.cfg.max_block && out.iter().all(|o| o.len() == len));
         let _ftz = DenormalGuard::new();
         let mut ev = 0;
+        for key in &mut self.wave_force { key[..len].fill(0.0); }
         let mut s0 = 0;
         while s0 < len {
             let s1 = (s0 + SUB_BLOCK).min(len);
             let n_ev = events[ev..].iter().take_while(|e| (e.frame as usize) < s1 || s1 == len).count();
+            self.wave_offset = s0;
             self.sub_block(&events[ev..ev + n_ev], s0, s1 - s0);
             let mics = &self.mic_buf[..self.n_mics];
             let written = if per_mic {
@@ -853,6 +897,9 @@ impl Engine {
                 }
             }
         }
+        if let Some(strike) = &mut self.sympathetic_strike {
+            strike.prepare_listeners(&self.disp_in, len, t0);
+        }
         // The body's halo renders up to each event, so that a strike takes
         // its slot in the bank from what the bank holds at its own frame,
         // however many come in one sub-block (crate::body); the case's
@@ -876,6 +923,10 @@ impl Engine {
         // The rear lengths answer the bridge (the same delayed motion the
         // strings take) and push on the sympathetic board.
         if self.sympathy() {
+            if let Some(strike) = &mut self.sympathetic_strike {
+                strike.board.set_load(self.board_load);
+                strike.drive(&mut self.disp_in, len, t0, self.cfg.sample_rate as f32);
+            }
             let silence = self.shortcuts.sym_silence;
             for ((bank, u), f) in self.rear.iter_mut().zip(&self.disp_in).zip(self.region_sym.iter_mut()) {
                 if !bank.is_empty() && (bank.energy() >= silence || u[..len].iter().any(|&x| x != 0.0)) {
@@ -1149,7 +1200,7 @@ impl Engine {
             if !v.active {
                 continue;
             }
-            v.drop_silent_partials(drop);
+            v.drop_silent_partials(drop * v.partial_drop_scale);
             let listening = sympathy && (v.engagement < 0.5 || self.shortcuts.listen_all);
             if !listening && v.energy() < self.shortcuts.voice_silence {
                 v.active = false;
@@ -1166,6 +1217,32 @@ impl Engine {
         let with_frame = self.frame.is_some();
         let deaf = self.shortcuts.deaf_above;
         let t0 = self.clock;
+        let width = self.inst.model.sympathetic.speaking_distance_half_width;
+        if width > 0.0 {
+            if self.distance_keys != self.key_down {
+                self.distance_keys = self.key_down;
+                // With all keys released the last footprint continues to drive the
+                // strings. Sound already stored in every listening bank decays freely.
+                if self.key_down.contains(&true) {
+                    for (key, weight) in self.listening_weight.iter_mut().enumerate() {
+                        let distance = self.key_down.iter().enumerate()
+                            .filter(|(_, down)| **down)
+                            .map(|(held, _)| held.abs_diff(key))
+                            .min().unwrap_or(0) as f64;
+                        *weight = 2.0_f64.powf(-(distance / width).powi(2)) as f32;
+                    }
+                }
+            }
+            for v in self.voices.iter_mut().filter(|v| v.active) {
+                v.distance_target = self.listening_weight[v.note as usize];
+            }
+        }
+        let external = &self.wave_in;
+        let offset = self.wave_offset;
+        let (listener_input,mut pulse_input) = match &mut self.sympathetic_strike {
+            Some(s) => (if s.speaking_gain > 0.0 { &s.speaking } else { &self.disp_in }, Some(&mut s.input)),
+            None => (&self.disp_in,None),
+        };
         self.busy.clear();
         self.busy.extend(self.voices.iter().enumerate().filter(|(_, v)| v.active).map(|(i, _)| i));
         if let Some(pool) = self.pool.as_mut().filter(|_| self.busy.len() >= PARALLEL_MIN_VOICES) {
@@ -1178,7 +1255,10 @@ impl Engine {
                 // SAFETY: `busy` holds distinct indices into `voices`.
                 let v = unsafe { &mut *voices.0.add(busy[i]) };
                 let nm = table.get(v.note);
-                let bridge = (sympathy && v.engagement < deaf).then(|| (&disp_in[region_of(v.note)][from..to], SUB_BLOCK));
+                let input = if v.key_down { disp_in } else { listener_input };
+                let bridge = (sympathy && v.engagement < deaf).then(|| (if external.is_empty() { &input[region_of(v.note)][from..to] } else {
+                    &external[(v.note - 21) as usize][offset+from..offset+to]
+                }, SUB_BLOCK));
                 v.compute(nm, with_frame, t0, from, to, bridge);
             });
             for &i in &self.busy {
@@ -1186,6 +1266,11 @@ impl Engine {
                 let basis = Some(&mut self.basis[..]);
                 v.mix(self.inst.table.get(v.note), &mut self.region, &mut self.region_sym, with_frame.then_some(&mut self.region_agraffe[..]), basis, from, to);
                 v.mix_forced(self.inst.table.get(v.note), &mut self.forced_mics, self.n_mics, from, to);
+                if v.struck && !self.wave_force.is_empty() {
+                let key = &mut self.wave_force[(v.note-21) as usize][offset+from..offset+to];
+                for (sum, &force) in key.iter_mut().zip(v.primary_force(from, to)) { *sum += force; }
+            }
+            if let Some(input) = &mut pulse_input { SympatheticStrike::add(input, region_of(v.note), &v.rear_contact, from, to); }
             }
             return;
         }
@@ -1193,11 +1278,19 @@ impl Engine {
             let nm = self.inst.table.get(v.note);
             let r = region_of(v.note);
             // Fully damped strings do not resonate: skip their input.
-            let bridge = (sympathy && v.engagement < deaf).then(|| (&self.disp_in[r][from..to], SUB_BLOCK));
+            let input = if v.key_down { &self.disp_in } else { listener_input };
+            let bridge = (sympathy && v.engagement < deaf).then(|| (if external.is_empty() { &input[r][from..to] } else {
+                    &external[(v.note - 21) as usize][offset+from..offset+to]
+                }, SUB_BLOCK));
             v.compute(nm, with_frame, t0, from, to, bridge);
             let basis = Some(&mut self.basis[..]);
             v.mix(nm, &mut self.region, &mut self.region_sym, with_frame.then_some(&mut self.region_agraffe[..]), basis, from, to);
             v.mix_forced(nm, &mut self.forced_mics, self.n_mics, from, to);
+            if v.struck && !self.wave_force.is_empty() {
+                let key = &mut self.wave_force[(v.note-21) as usize][offset+from..offset+to];
+                for (sum, &force) in key.iter_mut().zip(v.primary_force(from, to)) { *sum += force; }
+            }
+            if let Some(input) = &mut pulse_input { SympatheticStrike::add(input, region_of(v.note), &v.rear_contact, from, to); }
         }
     }
 
@@ -1339,33 +1432,32 @@ impl Engine {
             // again, the bottom string piled up undamped voices.
             Event::NoteOn { note, .. } | Event::NoteOff { note, .. } if !(21..=108).contains(&note) => {}
             Event::NoteOn { velocity: 0, note } => self.note_off(note),
-            Event::NoteOn { note, velocity } => {
-                let k = note as usize & 127;
-                let window = (DUPLICATE_S * self.cfg.sample_rate) as u64;
-                // The same key again while it is still down, a few ms later:
-                // the same keystroke reaching the engine twice (a keyboard
-                // connected through two MIDI paths). Struck again, the string
-                // the first hammer had just set moving took a fresh blow: a
-                // soft note came out harsh and metallic (2 ms apart: +21 dB
-                // above 3 kHz).
-                if self.key_down[k] && self.now.saturating_sub(self.key_down_at[k]) < window {
-                    self.doubled = self.doubled.wrapping_add(1);
-                    return;
+            Event::NoteOn { note, velocity } => self.note_on(note, self.live.velocity.hammer_speed(velocity), 1.0, None),
+            Event::FeltStrike { note, velocity, core_scale } => {
+                if (21..=108).contains(&note) && velocity > 0 && core_scale.is_finite() && core_scale > 0.0 {
+                    self.note_on(note, self.live.velocity.hammer_speed(velocity), core_scale, None);
                 }
-                self.key_down_at[k] = self.now;
-                // Released and struck again while its hammer still presses
-                // the string (a few ms): no action throws a hammer that has
-                // not left the string. The key is down again (its damper
-                // stays off), the strike is not played.
-                if self.voices.iter().any(|v| v.active && v.note == note && v.contact.is_active()) {
-                    self.key_down[k] = true;
-                    self.key_up_at[k] = None;
-                    for v in self.voices.iter_mut().filter(|v| v.active && v.note == note) {
-                        v.key_down = true;
-                    }
-                    return;
+            }
+            Event::TouchStrike { note, physical_velocity, trim_db, firmer } => {
+                if (21..=108).contains(&note) && (1.0..=127.0).contains(&physical_velocity) && (-120.0..=40.0).contains(&trim_db) {
+                    let law = self.live.velocity;
+                    let fraction = (physical_velocity - 1.0) / 126.0;
+                    // Quadratic continuation of the velocity law at its lower endpoint.
+                    // It meets the original value and slope at physical velocity 3.
+                    let exponent = if physical_velocity < 3.0 {
+                        let z = (physical_velocity - 1.0) / 2.0;
+                        (2.0_f64 / 126.0).powf(law.curve) * ((2.0 - law.curve) * z + (law.curve - 1.0) * z * z)
+                    } else { fraction.powf(law.curve) };
+                    let speed = law.vmin * (law.vmax / law.vmin).powf(exponent);
+                    let t = if firmer { ((70.0 - physical_velocity) / 25.0).clamp(0.0, 1.0) } else { 0.0 };
+                    let core = 1.0 + t * t * (3.0 - 2.0 * t);
+                    self.note_on(note, speed, core, Some(10.0_f64.powf(trim_db / 20.0)));
                 }
-                self.note_on(note, velocity)
+            }
+            Event::Strike { note, speed_mps } => {
+                if (21..=108).contains(&note) && speed_mps.is_finite() && speed_mps > 0.0 {
+                    self.note_on(note, speed_mps, 1.0, None);
+                }
             }
             Event::NoteOff { note, velocity } => {
                 // Release velocity sets how fast the damper falls.
@@ -1453,7 +1545,32 @@ impl Engine {
         self.case.render([&mut nl[a..b], &mut nr[a..b]], gain);
     }
 
-    fn note_on(&mut self, note: u8, velocity: u8) {
+    fn note_on(&mut self, note: u8, vh: f64, core_scale: f64, touch_level: Option<f64>) {
+        let k = note as usize & 127;
+        let window = (DUPLICATE_S * self.cfg.sample_rate) as u64;
+        // The same key again while it is still down, a few ms later:
+        // the same keystroke reaching the engine twice (a keyboard
+        // connected through two MIDI paths). Struck again, the string
+        // the first hammer had just set moving took a fresh blow: a
+        // soft note came out harsh and metallic (2 ms apart: +21 dB
+        // above 3 kHz).
+        if self.key_down[k] && self.now.saturating_sub(self.key_down_at[k]) < window {
+            self.doubled = self.doubled.wrapping_add(1);
+            return;
+        }
+        self.key_down_at[k] = self.now;
+        // Released and struck again while its hammer still presses
+        // the string (a few ms): no action throws a hammer that has
+        // not left the string. The key is down again (its damper
+        // stays off), the strike is not played.
+        if self.voices.iter().any(|v| v.active && v.note == note && v.contact.is_active()) {
+            self.key_down[k] = true;
+            self.key_up_at[k] = None;
+            for v in self.voices.iter_mut().filter(|v| v.active && v.note == note) {
+                v.key_down = true;
+            }
+            return;
+        }
         let cfg = self.cfg;
         let repetition = self.repetition(note);
         // A key re-struck while its string still rings hits the moving string.
@@ -1491,17 +1608,30 @@ impl Engine {
         v.active = true;
         v.key_down = true;
         let softening = self.live.una_corda_softening;
-        let vh = self.live.velocity.hammer_speed(velocity);
         // An upright's soft pedal shortens the throw (half-blow); a grand's
         // shifts the action (una corda).
         let thrown = vh * (1.0 - self.live.half_blow * self.soft).max(0.0) * repetition;
         let mute = if self.mute_down { self.live.mute_felt } else { 0.0 };
         // Overkill: twice the contact steps.
         let os = contact_oversampling(&cfg, note) * if cfg.quality == Quality::Overkill { 2 } else { 1 };
-        v.strike(nm, thrown, os, self.soft * self.live.una_corda_shift, softening, mute);
+        let row = self.live.key_voicing.at(note);
+        let gain = match touch_level {
+            Some(level) => level * row.touch_playback_gain(vh, &self.live.velocity),
+            None => row.playback_gain(vh, &self.live.velocity),
+        };
+        v.set_playback_gain(gain as f32);
+        // The loud-note cutoff erases sounding treble partials on soft blows.
+        // Keep their full bank; reintroduce the normal cutoff across the transition.
+        let soft = self.live.velocity.hammer_speed(45);
+        let normal = self.live.velocity.hammer_speed(70);
+        v.partial_drop_scale = if normal > soft {
+            let t = ((vh - soft) / (normal - soft)).clamp(0.0, 1.0);
+            (t * t * (3.0 - 2.0 * t)) as f32
+        } else { 1.0 };
+        v.strike_with_core(nm, thrown, os, self.soft * self.live.una_corda_shift, softening, mute, core_scale);
         v.damper_speed = 1.0;
         // The key bottoms on the keybed as the hammer reaches the string.
-        self.knock(region_of(note), self.live.noise.keybed * vh);
+        self.knock(region_of(note), self.live.noise.keybed * vh * gain);
         if self.board.is_some() {
             // The action's knock renders from the start of the sub-block: it
             // waits for the note's own frame within it, then its delay. The
@@ -1509,16 +1639,16 @@ impl Engine {
             // frame (render_body).
             let within = self.now.saturating_sub(self.clock) as f64 / self.cfg.sample_rate;
             let tilt = crate::body::SpeedTilt::of(&self.live.body, note, vh);
-            self.action.strike(note, self.live.noise.action * vh, within + self.live.noise.action_delay, tilt);
+            self.action.strike(note, self.live.noise.action * vh * gain, within + self.live.noise.action_delay, tilt);
             self.case.set(self.live.noise.case_low, self.live.noise.case_time);
-            self.case.strike(note, self.live.noise.case * vh, 0.0);
+            self.case.strike(note, self.live.noise.case * vh * gain, 0.0);
             // A live change of the body's law earlier in this sub-block
             // takes effect for this strike, not only at the next one.
             if self.live.body != *self.body.law() {
                 let law = self.live.body;
                 self.body.set_law(&law);
             }
-            self.body.strike(note, thrown, 0.0);
+            self.body.strike_scaled(note, thrown, 0.0, gain);
         }
     }
 

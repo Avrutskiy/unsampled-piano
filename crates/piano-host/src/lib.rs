@@ -250,6 +250,32 @@ mod tests {
     use super::*;
 
     #[test]
+    fn exact_key_voicing_round_trips_and_overlays_without_spreading() {
+        let base = PianoModel::default();
+        assert!(!preset_toml(&base).contains("key_voicing"));
+        let first = overlay_preset(&base, "[key_voicing.41]\nfelt_stiffness_scale = 1.5\nstrike_offset = 0.003\n").unwrap();
+        let other = overlay_preset(&first, "[key_voicing.41]\nbridge_coupling_scale = 0.8\n[key_voicing.108]\nstring_loss_scale = 0.6\n").unwrap();
+        let h = other.note(41);
+        assert_eq!(h.hammer.q0, 1.5 * base.note(41).hammer.q0);
+        assert_eq!(h.hammer.core_q, base.note(41).hammer.core_q);
+        assert_eq!(h.strike_pos, base.note(41).strike_pos + 0.003);
+        assert_eq!(other.key_voicing.at(41).bridge_coupling_scale, 0.8);
+        assert_eq!(other.key_voicing.at(108).string_loss_scale, 0.6);
+        for n in [21, 40, 42, 60] {
+            assert_eq!(other.key_voicing.at(n), base.key_voicing.at(n));
+            assert_eq!(other.note(n).hammer.q0, base.note(n).hammer.q0);
+            assert_eq!(other.note(n).strike_pos, base.note(n).strike_pos);
+        }
+        let text = preset_toml(&other);
+        assert_eq!(text.matches("[key_voicing.").count(), 2);
+        let back: PianoModel = toml::from_str(&text).unwrap();
+        assert_eq!(back.key_voicing, other.key_voicing);
+        for bad in ["[key_voicing.20]\n", "[key_voicing.041]\n", "[key_voicing.41]\nstring_loss_scale = -1.0", "[key_voicing.41]\nhardness = 0.8"] {
+            assert!(toml::from_str::<PianoModel>(bad).is_err());
+        }
+    }
+
+    #[test]
     fn preset_round_trips_and_partial_presets_keep_defaults() {
         let d = PianoModel::default();
         let m = PianoModel { a4: 442.0, unison: piano_core::params::UnisonLaw { width_mid: 1.7, ..d.unison }, ..d };

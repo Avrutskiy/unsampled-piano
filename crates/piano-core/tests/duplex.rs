@@ -79,3 +79,23 @@ fn the_rear_lengths_ring_faintly_and_die() {
     let late = 20.0 * (rms(&b[5 * n..]) / rms(&b[..n])).log10();
     assert!(late < -50.0, "two seconds after the key-up: {late} dB re the note");
 }
+
+#[test]
+fn the_rear_bearing_can_tune_the_stiff_segment_to_a_speaking_partial() {
+    // Limit the bank to the top key so the first mode is its rear fundamental.
+    let mut model = EngineConfig::default().model;
+    model.sympathetic.rear = true;
+    model.sympathetic.rear_from = 108;
+    model.sympathetic.max_freq = 22000.0;
+    let key = model.note(108);
+    let params = model.soundboard.unwrap();
+    let back = if params.structure.enabled { params.structure.back_length_at(108) } else { 0.04 + 0.1 * key.length };
+    let rank = (key.length / back).ceil().max(1.0) as u32;
+    let target = piano_core::params::partial_freq(key.f0, key.b, rank);
+    for cents in [0.0, 60.0] {
+        model.sympathetic.rear_harmonic_offset_cents = Some(cents);
+        let banks = piano_core::note_model::rear_modes(&model, None, 48000.0).unwrap();
+        let hz = banks.iter().flatten().next().unwrap().freq_hz;
+        assert!((1200.0 * (hz / target).log2() - cents).abs() < 1e-6);
+    }
+}

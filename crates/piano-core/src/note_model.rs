@@ -28,6 +28,7 @@ pub struct PhysOsc {
 pub struct NoteModel {
     pub note: u8,
     pub params: NoteParams,
+    pub board_coupling: f32,
     /// Oscillators per partial: strings × polarisations.
     pub n_osc: usize,
     pub clusters: Vec<Cluster>,
@@ -194,6 +195,16 @@ impl NoteModel {
         let sympathy = board_modes.filter(|_| model.sympathetic.enabled).map(|bm| &bm[..heard_modes(model, bm, low_gain.as_ref().map(|(n, _)| *n))]);
         let dt = 1.0 / sample_rate;
         let mut n_listen = 0;
+        let voicing = model.key_voicing.at(note);
+        let coupling = if board.is_some() {
+            let base = if note == model.bridge.coupling_note { model.bridge.local_coupling.max(0.0) } else { 1.0 };
+            base * voicing.bridge_coupling_scale
+        } else {
+            1.0
+        };
+        // Returning board velocity and transmitted string force each acquire
+        // one factor. The opposite termination sees its original admittance.
+        let reflected = coupling * coupling;
         let bridge_shapes = board.map(|b| b.bridge_shapes(note));
         let ns = np.strings;
         let pol = model.polarization.at(note);
@@ -238,7 +249,7 @@ impl NoteModel {
             }
             // The smooth admittance the sideways motion sees (polarization.smooth).
             let eps_ref = match board {
-                Some(b) => C64::new(b.params.mean_mobility() * np.tension / np.length, 0.0),
+                Some(b) => C64::new(b.params.mean_mobility() * np.tension / np.length * reflected, 0.0),
                 None => np.coupling(&model.bridge, fv[0]),
             };
             let eps = match (board, &bridge_shapes) {
@@ -246,8 +257,8 @@ impl NoteModel {
                     // The string's other end: the frame at its agraffe (the
                     // mode's slope is the same there, (−1)^(k+1)·kπ/L).
                     let at_frame = frame.map_or(C64::ZERO, |f| f.at(b.params.key_across(note), tau * fv[0]));
-                    let y = b.bridge_admittance(sh, tau * fv[0]) + C64::new(b.edge_conductance(note, tau * fv[0]), 0.0) + at_frame;
-                    let y = if b.params.bridge_yield { y + C64::new(b.yield_conductance(tau * fv[0]), 0.0) } else { y };
+                    let y = (b.bridge_admittance(sh, tau * fv[0]) + C64::new(b.edge_conductance(note, tau * fv[0]), 0.0)).scale(reflected) + at_frame;
+                    let y = if b.params.bridge_yield { y + C64::new(reflected * b.yield_conductance(tau * fv[0]), 0.0) } else { y };
                     y.scale(np.tension / np.length)
                 }
                 _ => np.coupling(&model.bridge, fv[0]),
@@ -259,9 +270,9 @@ impl NoteModel {
                 None => eps,
             };
             let extra = |j: usize| at(j).map_or(0.0, |d| front_loss(&d));
-            let dv: Vec<C64> = fv.iter().enumerate().map(|(j, &f)| C64::new(-(model.losses.sigma_on(note, f, &geo) + extra(j)), tau * f)).collect();
+            let dv: Vec<C64> = fv.iter().enumerate().map(|(j, &f)| C64::new(-(model.string_loss_on(note, f, &geo) + extra(j)), tau * f)).collect();
             let cl = if pol.enabled {
-                let dh: Vec<C64> = fh.iter().enumerate().map(|(j, &f)| C64::new(-(model.losses.sigma_on(note, f, &geo) + extra(j)), tau * f)).collect();
+                let dh: Vec<C64> = fh.iter().enumerate().map(|(j, &f)| C64::new(-(model.string_loss_on(note, f, &geo) + extra(j)), tau * f)).collect();
                 let (eps_h, eps_x) = pol.sideways(eps, eps_ref, fv[0]);
                 unison::couple_polarised(&dv, &dh, eps, eps_h, eps_x)
             } else {
@@ -336,7 +347,8 @@ impl NoteModel {
                     Some(h) => {
                         let kpi = k as f64 * std::f64::consts::PI;
                         let g1 = cl.output_weight(m, &vert) * C64::new(0.0, 2.0 * dt / (kpi * omega));
-                        let g1 = g1.scale(model.sympathetic.gain);
+                        let listens = model.sympathetic.speaking_listen_key.is_none_or(|key| key == note);
+                        let g1 = g1.scale(if listens { model.sympathetic.gain * coupling * model.sympathetic.speaking_gain } else { 0.0 });
                         (g1, if model.sympathetic.self_cancel { -(g1 * h) } else { C64::ZERO })
                     }
                     None => (C64::ZERO, C64::ZERO),
@@ -384,16 +396,16 @@ impl NoteModel {
             let hold = d.iter().map(|m| (m.shape.bridge / m.shape.nu).powi(2)).sum::<f64>() / ns as f64;
             let (eps_ref, eps) = match (board, &bridge_shapes) {
                 (Some(b), Some(sh)) => (
-                    C64::new(b.params.mean_mobility() * np.tension / np.length, 0.0),
+                    C64::new(b.params.mean_mobility() * np.tension / np.length * reflected, 0.0),
                     {
                         let y = b.bridge_admittance(sh, tau * fv[0]) + C64::new(b.edge_conductance(note, tau * fv[0]), 0.0);
                         let y = if b.params.bridge_yield { y + C64::new(b.yield_conductance(tau * fv[0]), 0.0) } else { y };
-                        y.scale(hold * np.tension / np.length)
+                        y.scale(hold * np.tension / np.length * reflected)
                     },
                 ),
                 _ => (np.coupling(&model.bridge, fv[0]), np.coupling(&model.bridge, fv[0]).scale(hold)),
             };
-            let dv: Vec<C64> = (0..ns).map(|j| C64::new(-(model.losses.sigma_on(note, fv[j], &geo) + front_loss(&d[j])), tau * fv[j])).collect();
+            let dv: Vec<C64> = (0..ns).map(|j| C64::new(-(model.string_loss_on(note, fv[j], &geo) + front_loss(&d[j])), tau * fv[j])).collect();
             let cl = if pol.enabled {
                 let dh: Vec<C64> = (0..ns).map(|j| C64::new(dv[j].re, tau * fh[j])).collect();
                 let (eps_h, eps_x) = pol.sideways(eps, eps_ref, fv[0]);
@@ -441,12 +453,19 @@ impl NoteModel {
             }
             clusters.push(cl);
         }
+        for mode in &mut modes {
+            mode.out_re *= coupling;
+            mode.out_im *= coupling;
+            mode.out3_re *= coupling;
+            mode.out3_im *= coupling;
+        }
         let table = ModeTable::new(sample_rate, &modes);
         let sym_table = ModeTable::new(sample_rate, &sym_specs(&modes, None, sample_rate));
         let sym_table_free = ModeTable::new(sample_rate, &sym_specs(&modes, None, sample_rate));
         Self {
             note,
             params: np,
+            board_coupling: coupling as f32,
             n_osc,
             clusters,
             n_partials,
@@ -522,38 +541,59 @@ pub fn rear_modes(model: &PianoModel, board: Option<&Soundboard>, sample_rate: f
         if !(l > 1e-3) {
             continue;
         }
-        let (f0, b) = (np.f0 * np.length / l, np.b * (np.length / l).powi(2));
-        let geo = params::StringGeometry::of(&np, model.nonlinear.young).with_length(np.length, l);
-        let shapes = board.map(|bd| bd.bridge_shapes(note));
-        for n in 1..=64u32 {
-            let f = params::partial_freq(f0, b, n);
-            if f >= law.max_freq.min(0.45 * sample_rate) {
-                break;
+        // A movable rear bearing determines the vibrating segment, while the
+        // full back length remains the structural support used by the board.
+        let l = match law.rear_harmonic_offset_cents.filter(|c| c.is_finite()) {
+            Some(cents) => {
+                let rank = (np.length / l).ceil().max(1.0);
+                let pitch_ratio = rank * (1.0 + np.b * rank * rank).sqrt()
+                    * 2.0_f64.powf(cents.clamp(-100.0, 100.0) / 1200.0);
+                let q = pitch_ratio * pitch_ratio;
+                // Solve q = span² (1 + B span²), including the unstiff limit.
+                let span = (2.0 * q / (1.0 + (1.0 + 4.0 * np.b * q).sqrt())).sqrt();
+                (np.length / span).min(l)
             }
-            let npi = n as f64 * std::f64::consts::PI;
-            let g = C64::new(0.0, 2.0 * dt / (npi * tau * f)).scale(law.gain);
-            // (The key's strings move together: one mode that loses to the
-            // bridge what each would alone, times their number.)
-            let to_bridge = np.strings as f64 * np.tension / l
-                * match (board, &shapes) {
-                    (Some(bd), Some(sh)) => (bd.bridge_admittance(sh, tau * f).re + bd.edge_conductance(note, tau * f)).max(0.0),
-                    _ => model.bridge.admittance(f).re.max(0.0),
-                };
-            regions[board::region_of(note)].push(ModeSpec {
-                freq_hz: f,
-                sigma: model.losses.sigma_on(note, f, &geo) + law.rear_loss.max(0.0) + to_bridge,
-                gain_re: g.re,
-                gain_im: g.im,
-                gain2_re: 0.0,
-                gain2_im: 0.0,
-                out_re: np.strings as f64 * np.tension * npi / l,
-                out_im: 0.0,
-                out2_re: 0.0,
-                out2_im: 0.0,
-                out3_re: 0.0,
-                out3_im: 0.0,
-                damp_w: 0.0,
-            });
+            None => l,
+        };
+        let shapes = board.map(|bd| bd.bridge_shapes(note));
+        let spread = law.rear_bearing_spread.clamp(0.0, 0.35);
+        let groups = if spread > 0.0 { np.strings } else { 1 };
+        let group_strings = np.strings as f64 / groups as f64;
+        let limit = law.rear_band_limit.unwrap_or(law.max_freq).min(0.45 * sample_rate);
+        for i in 0..groups {
+            let position = i as f64 / (groups.saturating_sub(1).max(1) as f64);
+            let l = l * (1.0 - spread * position);
+            let (f0, b) = (np.f0 * np.length / l, np.b * (np.length / l).powi(2));
+            let geo = params::StringGeometry::of(&np, model.nonlinear.young).with_length(np.length, l);
+            for n in 1..=64u32 {
+                let f = params::partial_freq(f0, b, n);
+                if f >= limit {
+                    break;
+                }
+                let npi = n as f64 * std::f64::consts::PI;
+                let g = C64::new(0.0, 2.0 * dt / (npi * tau * f)).scale(law.gain);
+                // Keep the installed bridge damping law fixed when comparing bearing layouts.
+                let to_bridge = np.strings as f64 * np.tension / l
+                    * match (board, &shapes) {
+                        (Some(bd), Some(sh)) => (bd.bridge_admittance(sh, tau * f).re + bd.edge_conductance(note, tau * f)).max(0.0),
+                        _ => model.bridge.admittance(f).re.max(0.0),
+                    };
+                regions[board::region_of(note)].push(ModeSpec {
+                    freq_hz: f,
+                    sigma: model.string_loss_on(note, f, &geo) + law.rear_loss.max(0.0) + to_bridge,
+                    gain_re: g.re,
+                    gain_im: g.im,
+                    gain2_re: 0.0,
+                    gain2_im: 0.0,
+                    out_re: group_strings * np.tension * npi / l,
+                    out_im: 0.0,
+                    out2_re: 0.0,
+                    out2_im: 0.0,
+                    out3_re: 0.0,
+                    out3_im: 0.0,
+                    damp_w: 0.0,
+                });
+            }
         }
     }
     Some(regions.iter().map(|m| sym_specs(m, None, sample_rate)).collect())
@@ -790,6 +830,22 @@ impl PianoTable {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn keyed_string_loss_and_board_attachment_reach_the_modes() {
+        let mut model = PianoModel::default();
+        let board = model.board().unwrap();
+        model.bridge.coupling_note = 41;
+        model.bridge.local_coupling = 0.7;
+        let before = NoteModel::build(&model, Some(&board), None, 41, 48000.0, 128);
+        let adj = crate::key_voicing::KeyVoicing { string_loss_scale: 0.5, bridge_coupling_scale: 0.8, ..Default::default() };
+        model.key_voicing.set(41, adj).unwrap();
+        let after = NoteModel::build(&model, Some(&board), None, 41, 48000.0, 128);
+        assert_eq!(before.board_coupling, 0.7f32);
+        assert_eq!(after.board_coupling, (0.7 * 0.8) as f32);
+        assert_eq!(after.phys[0].sigma, before.phys[0].sigma * 0.5);
+        assert_ne!(before.modes[0].sigma, after.modes[0].sigma);
+    }
 
     /// The frame two way: a key's partials lose to the frame at their
     /// agraffes as well as to the board (in all; one coupled mode of a

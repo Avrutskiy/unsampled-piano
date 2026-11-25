@@ -177,6 +177,10 @@ impl BlackBox {
         for (t, e) in &events {
             match e {
                 Event::NoteOn { note, velocity } => writeln!(f, "E {t} on {note} {velocity}")?,
+                Event::Strike { note, speed_mps } => writeln!(f, "E {t} strike {note} {speed_mps}")?,
+                Event::TouchStrike { note, physical_velocity, trim_db, firmer } =>
+                    writeln!(f, "E {t} touch {note} {physical_velocity} {trim_db} {firmer}")?,
+                Event::FeltStrike { note, velocity, core_scale } => writeln!(f, "E {t} felt {note} {velocity} {core_scale}")?,
                 Event::NoteOff { note, velocity } => writeln!(f, "E {t} off {note} {velocity}")?,
                 Event::Control { cc, value } => writeln!(f, "E {t} cc {cc} {value}")?,
                 Event::AllNotesOff => writeln!(f, "E {t} all_off")?,
