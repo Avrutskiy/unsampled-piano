@@ -1,5 +1,7 @@
 # Render the wave-coupled concert grand
 
+**Playback scope.** The Liszt recording uses the offline renderer. It applies the baked bridge transfer and the per-key touch calibration. The standalone player and plug-in can load the same grand preset and play it live with their existing sympathetic-string response and MIDI velocity mapping. Hearing the exact offline sound from a live keyboard requires further integration.
+
 The offline renderer uses the physical model twice. It first captures the vertical force delivered by each struck string group. It then renders the performance with the solved motion of every other bridge contact driving the receiving strings. Both passes follow the complete MIDI timeline, including pedal changes and a four-second tail. Playback uses the touch calibration and a fixed stereo output gain.
 
 The shell commands below run from the repository root and require Cargo, Python 3, NumPy, SciPy, and FFmpeg. Use a separate bank directory for each instrument and a separate work directory for each render. A full-size force capture can use several GB of temporary space. The block stream carries acceleration between processes.
