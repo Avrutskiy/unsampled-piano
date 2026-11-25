@@ -430,6 +430,37 @@ impl ModalBank {
         self.n_modes = other.n_modes.min(nc * LANES);
     }
 
+    /// Reconstructs the state that is audible partway through a crossfade.
+    /// Both banks describe the same modes, with the same microphone weights
+    /// on the destination. A dropped or previously silent mode contributes zero.
+    pub(crate) fn blend_follow(&mut self, current: &ModalBank, mix: f32, continuing: bool) {
+        if mix >= 1.0 {
+            self.follow(current);
+            return;
+        }
+        let old_count = if continuing { self.n_modes } else { 0 };
+        let count = old_count.max(current.n_modes).min(self.n_specs);
+        for i in 0..count {
+            let c = &mut self.chunks[i / LANES];
+            let j = i % LANES;
+            let (mut re, mut im) = (0.0, 0.0);
+            if i < old_count {
+                re = (1.0 - mix) * c.zr[j];
+                im = (1.0 - mix) * c.zi[j];
+            }
+            if i < current.n_modes {
+                let b = &current.chunks[i / LANES];
+                c.pr[j] = b.pr[j];
+                c.pi[j] = b.pi[j];
+                re += mix * b.zr[j];
+                im += mix * b.zi[j];
+            }
+            c.zr[j] = re;
+            c.zi[j] = im;
+        }
+        self.n_modes = count;
+    }
+
     /// Complex state z of mode `i`.
     pub fn state(&self, i: usize) -> (f64, f64) {
         let c = &self.chunks[i / LANES];

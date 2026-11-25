@@ -99,6 +99,12 @@ fn replay(dir: &std::path::Path, output: &std::path::Path, threads_cli: usize) -
                 let n = |i: usize| -> Result<u8, Box<dyn std::error::Error>> { Ok(rest.get(i).ok_or("short event")?.parse()?) };
                 let e = match *kind {
                     "on" => Event::NoteOn { note: n(0)?, velocity: n(1)? },
+                    "strike" => Event::Strike { note: n(0)?, speed_mps: rest.get(1).ok_or("short strike")?.parse()? },
+                    "touch" => Event::TouchStrike {
+                        note: n(0)?, physical_velocity: rest.get(1).ok_or("short touch")?.parse()?,
+                        trim_db: rest.get(2).ok_or("short touch")?.parse()?, firmer: rest.get(3).ok_or("short touch")?.parse()?,
+                    },
+                    "felt" => Event::FeltStrike { note: n(0)?, velocity: n(1)?, core_scale: rest.get(2).ok_or("short felt")?.parse()? },
                     "off" => Event::NoteOff { note: n(0)?, velocity: n(1)? },
                     "cc" => Event::Control { cc: n(0)?, value: n(1)? },
                     "all_off" => Event::AllNotesOff,

@@ -278,7 +278,7 @@ pub fn encode(e: Event) -> Option<[u8; 3]> {
         Event::NoteOff { note, velocity } => Some([0x80, note & 0x7f, velocity & 0x7f]),
         Event::Control { cc, value } => Some([0xb0, cc & 0x7f, value & 0x7f]),
         Event::AllNotesOff => Some([0xb0, 123, 0]),
-        Event::Param { .. } => None,
+        Event::Param { .. } | Event::Strike { .. } | Event::TouchStrike { .. } | Event::FeltStrike { .. } => None,
     }
 }
 

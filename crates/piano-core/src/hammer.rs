@@ -54,6 +54,29 @@ pub struct ModeShape {
     pub bridge: f64,
 }
 
+// Calibrated against the soft and loud sample banks. Interpolate the cut in dB
+// against log launch speed; both MIDI and direct-speed strikes take this path.
+fn upper_gains(cuts: [f32; 3], speed: f64) -> [f64; 3] {
+    if cuts == [0.0; 3] {
+        return [1.0; 3];
+    }
+    const SOFT_SPEED: f64 = 1.75;
+    const BRIGHT_SPEED: f64 = 7.35;
+    let mix = (speed.max(SOFT_SPEED) / SOFT_SPEED).ln() / (BRIGHT_SPEED / SOFT_SPEED).ln();
+    let strength = 1.0 - mix.min(1.0);
+    cuts.map(|db| 10f64.powf(-f64::from(db) * strength / 20.0))
+}
+
+// Front-duplex modes use index zero and keep their original excitation.
+fn partial_gain(note: &NoteParams, upper: &[f64; 3], k: u32) -> f64 {
+    match k {
+        0 => 1.0,
+        1..=6 => note.strike_partial_gain[k as usize - 1],
+        7..=8 => note.strike_partial_gain[k as usize - 1] * upper[k as usize - 7],
+        _ => upper[2],
+    }
+}
+
 /// One string mode as seen by the contact solver.
 #[derive(Clone, Copy, Debug)]
 pub struct PhysMode {
@@ -156,9 +179,8 @@ pub struct ContactSolver {
     c_tail: f64,
     r_bridge: f64,
     r_agraffe: f64,
-    /// What the residual was computed for (a voice keeps its key: the sums
-    /// are redone only when the instrument changes).
-    residual_key: [f64; 8],
+    /// Geometry and excitation gains used for the cached residual sums.
+    residual_key: ([f64; 8], [f64; 8], [f64; 3]),
     /// Contact force of each string at the last two steps (N).
     f0: [f64; NS],
     f1: [f64; NS],
@@ -209,7 +231,7 @@ impl ContactSolver {
             c_tail: 0.0,
             r_bridge: 0.0,
             r_agraffe: 0.0,
-            residual_key: [f64::NAN; 8],
+            residual_key: ([f64::NAN; 8], [1.0; 8], [1.0; 3]),
             f0: [0.0; NS],
             f1: [0.0; NS],
             x0: 0.0,
@@ -321,6 +343,7 @@ impl ContactSolver {
                 (sigma[s], offset[s]) = (0.0, 0.0);
             }
         }
+        let upper = upper_gains(note.upper_strike_cut_db, v);
         let mut k_max = 0;
         for m in modes.take(self.ps.len()) {
             let i = n;
@@ -345,6 +368,7 @@ impl ContactSolver {
                 Some(sh) => (sh.nu, sh.strike, sh.bridge),
                 None => (k, (k * std::f64::consts::PI * (1.0 - note.strike_pos - note.strike_offset[s])).sin(), k),
             };
+            let at_strike = at_strike * partial_gain(note, &upper, m.k);
             let x = nu * half_w;
             let phi = if sigma[s] > 0.0 {
                 m.hit / (share * sigma[s])
@@ -401,10 +425,11 @@ impl ContactSolver {
         // C8, the knock of the top treble lost. The modes above k_max are
         // added here as their static response, felt width included.
         // Each left-out mode k answers statically with q = φ·F/(m·ω_k²).
-        let key = [note.f0, note.b, note.length, note.tension, note.mu, note.strike_pos, note.contact_width, k_max as f64];
+        let geometry = [note.f0, note.b, note.length, note.tension, note.mu, note.strike_pos, note.contact_width, k_max as f64];
+        let key = (geometry, note.strike_partial_gain, upper);
         if key != self.residual_key {
             self.residual_key = key;
-            self.residual(note, k_max, half_w, modal_mass);
+            self.residual(note, &upper, k_max, half_w, modal_mass);
         }
         // Each string's oscillators weigh (hit/share)/σ in its compression.
         self.c_res = std::array::from_fn(|s| if sigma[s] > 0.0 { self.c_tail * sq[s] / (sigma[s] * sigma[s]) } else { 0.0 });
@@ -446,13 +471,13 @@ impl ContactSolver {
     }
 
     /// The residual sums of `strike` (see there), for modes above `k_max`.
-    fn residual(&mut self, note: &NoteParams, k_max: u32, half_w: f64, modal_mass: f64) {
+    fn residual(&mut self, note: &NoteParams, upper: &[f64; 3], k_max: u32, half_w: f64, modal_mass: f64) {
         let (mut c_tail, mut b_tail, mut a_tail) = (0.0, 0.0, 0.0);
         for k in k_max + 1..=k_max + RESIDUAL_TERMS {
             let kf = k as f64;
             let x = kf * half_w;
             let sinc = if x > 1e-9 { x.sin() / x } else { 1.0 };
-            let phi = (kf * std::f64::consts::PI * (1.0 - note.strike_pos)).sin() * sinc;
+            let phi = (kf * std::f64::consts::PI * (1.0 - note.strike_pos)).sin() * sinc * partial_gain(note, upper, k);
             let w = std::f64::consts::TAU * crate::params::partial_freq(note.f0, note.b, k);
             let q = phi / (modal_mass * w * w);
             let out_w = note.tension * kf * std::f64::consts::PI / note.length;
@@ -493,16 +518,27 @@ impl ContactSolver {
 
     /// [`Self::run`], also writing to `stretch` (when given) the strings'
     /// Σ F_s² (N², the mean over the step's oversampling) of each sample.
-    pub fn run_with(&mut self, out: &mut [f32], mut agraffe: Option<&mut [f32]>, mut stretch: Option<&mut [f32]>) -> usize {
+    pub fn run_with(&mut self, out: &mut [f32], agraffe: Option<&mut [f32]>, stretch: Option<&mut [f32]>) -> usize {
+        self.run_contact_outputs(out, agraffe, stretch, None)
+    }
+
+    pub(crate) fn run_contact_outputs(&mut self, out: &mut [f32], mut agraffe: Option<&mut [f32]>, mut stretch: Option<&mut [f32]>, mut pulse: Option<&mut [f32]>) -> usize {
         for (i, o) in out.iter_mut().enumerate() {
             if !self.active {
                 return i;
             }
             let mut y = (0.0, 0.0);
             let mut f2 = 0.0;
+            let mut contact_sum = 0.0;
             for _ in 0..self.oversample {
                 y = self.step();
+                if pulse.is_some() {
+                    contact_sum += self.f0.iter().sum::<f64>();
+                }
                 f2 += self.f0.iter().map(|f| f * f).sum::<f64>();
+            }
+            if let Some(p) = pulse.as_deref_mut() {
+                p[i] = (contact_sum / self.oversample as f64) as f32;
             }
             *o += y.0 as f32;
             if let Some(a) = agraffe.as_deref_mut() {
@@ -749,6 +785,33 @@ mod tests {
         for (i, m) in modes.iter().enumerate() {
             assert!((s.complex_state(i) - m.state).norm() < 1e-12 * (1.0 + m.state.norm()) + 1e-18);
         }
+    }
+
+    #[test]
+    fn strike_voicing_weights_the_same_partial_on_both_sides_of_contact() {
+        let (modes, mut note) = setup(49, 1.0);
+        let mut solver = ContactSolver::new(512, 48_000.0);
+        solver.strike(&note, 2.0, 1, modes.iter().copied());
+        let baseline = solver.lanes[0];
+        note.strike_partial_gain[2] = 0.5;
+        solver.strike(&note, 2.0, 1, modes.iter().copied());
+        for lane in 0..CL {
+            let gain = if lane == 2 { 0.5 } else { 1.0 };
+            assert_eq!(solver.lanes[0].phi[0][lane], baseline.phi[0][lane] * gain);
+            assert_eq!(solver.lanes[0].gphi[0][lane], baseline.gphi[0][lane] * gain);
+        }
+        let old_tail = solver.c_tail;
+        note.upper_strike_cut_db = [4.0, 8.0, 12.0];
+        let upper = upper_gains(note.upper_strike_cut_db, 1.0);
+        solver.strike(&note, 1.0, 1, modes.iter().copied());
+        assert_eq!(partial_gain(&note, &upper, 0), 1.0);
+        assert_eq!(partial_gain(&note, &upper, 7), upper[0]);
+        assert_eq!(partial_gain(&note, &upper, 8), upper[1]);
+        assert_eq!(partial_gain(&note, &upper, 9), upper[2]);
+        assert!((solver.c_tail - old_tail * upper[2].powi(2)).abs() < 1e-12 * old_tail);
+        solver.strike(&note, 8.0, 1, modes.iter().copied());
+        assert_eq!(upper_gains(note.upper_strike_cut_db, 8.0), [1.0; 3]);
+        assert_eq!(solver.c_tail, old_tail);
     }
 
     #[test]

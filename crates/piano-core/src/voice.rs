@@ -37,6 +37,10 @@ pub struct Voice {
     pub sostenuto: bool,
     /// Has been struck since it was set up (else it only listens).
     pub struck: bool,
+    pub(crate) partial_drop_scale: f32,
+    primary_gain: f32,
+    target_gain: f32,
+    gain_ramp_left: usize,
     /// Damper contact, 0 lifted … 1 resting on the strings.
     pub engagement: f64,
     /// Speed factor of the next damper landing (from release velocity or
@@ -51,6 +55,8 @@ pub struct Voice {
     pub contact: ContactSolver,
     sym_force: Vec<f32>,
     agraffe: Vec<f32>,
+    pub(crate) rear_contact: Vec<f32>,
+    pub(crate) seated_return: f32,
     /// The sideways motion's force on the bridge pins, whose moment rocks
     /// the bridge (`NoteModel::rock_input`), this sub-block from `from`.
     /// Empty until [`Self::reserve_rocking`].
@@ -60,6 +66,10 @@ pub struct Voice {
     force: Vec<f32>,
     force_ring: Vec<f32>,
     x2: Vec<f32>,
+    pub(crate) distance_input: Vec<f32>,
+    pub(crate) distance_target: f32,
+    distance_gain: f32,
+    distance_step: f32,
     /// Low band of the primary and sympathetic forces (below
     /// [`crate::board::SHARE_HZ`]), shared between two regions, its
     /// one-pole coefficient and states.
@@ -106,12 +116,22 @@ pub struct Voice {
     /// strings: it fades in over [`FORCED_RAMP`] s (the bank's modes start
     /// at the hand-over; a step would click).
     forced_age: u32,
+    // At a restrike, continue the pressure from the already-ringing strings
+    // through contact, then crossfade it into the new forced response.
+    forced_previous: Vec<ModalBank>,
+    forced_scratch: [Vec<f32>; 2],
+    forced_carry: bool,
     forced_ramp: u32,
 }
 
 /// Fade-in of the forced response after the hammer's contact (s).
 pub const FORCED_RAMP: f64 = 0.003;
 
+
+fn forced_weight(age: u32, ramp: u32) -> f32 {
+    if age >= ramp { return 1.0; }
+    0.5 - 0.5 * (std::f32::consts::PI * age as f32 / ramp as f32).cos()
+}
 
 /// Ring length for the delayed signals (power of two ≥ 2·SUB_BLOCK).
 pub const RING: usize = 1024;
@@ -131,6 +151,10 @@ impl Voice {
             key_down: false,
             sostenuto: false,
             struck: false,
+            partial_drop_scale: 1.0,
+            primary_gain: 1.0,
+            target_gain: 1.0,
+            gain_ramp_left: 0,
             engagement: 1.0,
             damper_speed: 1.0,
             bank: ModalBank::new(sample_rate, modes, max_block),
@@ -139,10 +163,16 @@ impl Voice {
             contact: ContactSolver::new(modes, sample_rate),
             sym_force: vec![0.0; max_block],
             agraffe: vec![0.0; max_block],
+            rear_contact: Vec::new(),
+            seated_return: 1.0,
             rock: Vec::new(),
             force: vec![0.0; max_block],
             force_ring: vec![0.0; RING],
             x2: vec![0.0; max_block],
+            distance_input: Vec::new(),
+            distance_target: 1.0,
+            distance_gain: f32::NAN,
+            distance_step: (1.0 - (-1.0 / (0.008 * sample_rate)).exp()) as f32,
             force_lo: vec![0.0; max_block],
             sym_lo: vec![0.0; max_block],
             share_a: share_coefficient(sample_rate) as f32,
@@ -168,6 +198,9 @@ impl Voice {
             forced: Vec::new(),
             forced_out: Vec::new(),
             forced_age: 0,
+            forced_previous: Vec::new(),
+            forced_scratch: [Vec::new(), Vec::new()],
+            forced_carry: false,
             forced_ramp: (FORCED_RAMP * sample_rate).max(1.0) as u32,
         }
     }
@@ -175,10 +208,16 @@ impl Voice {
     /// Makes room for the board's forced response at `pairs` pairs of
     /// microphones (an instrument with `soundboard.forced_radiation`).
     /// Allocates; not on the audio thread.
+    pub(crate) fn primary_force(&self, from: usize, to: usize) -> &[f32] {
+        &self.force[from..to]
+    }
+
     pub fn reserve_forced(&mut self, pairs: usize) {
         let (modes, block) = (self.bank.capacity(), self.force.len());
         let rate = self.bank.sample_rate();
         self.forced = (0..pairs).map(|_| ModalBank::new(rate, modes, block)).collect();
+        self.forced_previous = (0..pairs).map(|_| ModalBank::new(rate, modes, block)).collect();
+        self.forced_scratch = std::array::from_fn(|_| vec![0.0; block]);
         self.forced_out = vec![vec![0.0; block]; 2 * pairs];
     }
 
@@ -208,9 +247,14 @@ impl Voice {
         for (b, t) in self.forced.iter_mut().zip(&nm.forced) {
             b.load(t);
         }
+        for (b, t) in self.forced_previous.iter_mut().zip(&nm.forced) {
+            b.load(t);
+        }
+        self.forced_carry = false;
         self.sym.load(&nm.sym_table);
         self.sym.set_active_len(nm.n_listen);
         self.sym.reset();
+        self.distance_gain = f32::NAN;
         self.sym_free = false;
         self.force.fill(0.0);
         self.force_ring.fill(0.0);
@@ -219,7 +263,23 @@ impl Voice {
         self.nl_hp = (0.0, 0.0);
         self.nl_old = false;
         self.struck = false;
+        self.partial_drop_scale = 1.0;
+        self.primary_gain = 1.0;
+        self.target_gain = 1.0;
+        self.gain_ramp_left = 0;
         self.sostenuto = false;
+    }
+
+    pub(crate) fn set_playback_gain(&mut self, gain: f32) {
+        self.target_gain = gain;
+        if self.struck && self.primary_gain != gain {
+            // A restrike inherits ringing string state. Crossfade its level
+            // over 5 ms to keep that old signal continuous at the new blow.
+            self.gain_ramp_left = (0.005 * self.bank.sample_rate()).round().max(1.0) as usize;
+        } else {
+            self.primary_gain = gain;
+            self.gain_ramp_left = 0;
+        }
     }
 
     /// Strikes the (possibly ringing) strings with the hammer at `v` m/s.
@@ -231,6 +291,17 @@ impl Voice {
     /// strikes through a soft, lossy layer before its own felt.
     #[allow(clippy::too_many_arguments)]
     pub fn strike(&mut self, nm: &NoteModel, v: f64, oversample: usize, una_corda: f64, softening: f64, mute: f64) {
+        self.strike_with_core(nm, v, oversample, una_corda, softening, mute, 1.0);
+    }
+
+    pub(crate) fn strike_with_core(&mut self, nm: &NoteModel, v: f64, oversample: usize, una_corda: f64, softening: f64, mute: f64, core_scale: f64) {
+        if self.struck && !self.contact.is_active() && !nm.forced.is_empty() && !self.forced_previous.is_empty() {
+            let mix = forced_weight(self.forced_age, self.forced_ramp);
+            for b in self.forced_previous.iter_mut().take(nm.forced.len()) {
+                b.blend_follow(&self.bank, mix, self.forced_carry);
+            }
+            self.forced_carry = true;
+        }
         if self.contact.is_active() {
             self.hand_over(nm);
         }
@@ -251,7 +322,7 @@ impl Voice {
         np.hammer.q0 *= 1.0 - u;
         // The fresh felt beside the grooves is softer throughout: the inner
         // felt too (the graded felt has no depth to push back).
-        np.hammer.core_q *= 1.0 - u;
+        np.hammer.core_q *= core_scale * (1.0 - u);
         np.hammer.core_depth *= 1.0 + 0.5 * u;
         if mute > 0.0 {
             np.hammer.q0 *= (MUTE_STIFFNESS_MM / mute).min(1.0);
@@ -324,6 +395,11 @@ impl Voice {
         self.force[from..to].fill(0.0);
         let n = to - from;
         self.agraffe[..n].fill(0.0);
+        let pulse = if self.rear_contact.is_empty() { None } else {
+            let buffer = &mut self.rear_contact[..n];
+            buffer.fill(0.0);
+            Some(buffer)
+        };
         let rocking = nm.rock_input.is_some() && !self.rock.is_empty();
         if rocking {
             self.rock[..n].fill(0.0);
@@ -337,12 +413,19 @@ impl Voice {
             let agraffe = with_agraffe.then_some(&mut self.agraffe[..n]);
             let strike = nm.longitudinal.as_ref().filter(|lg| !lg.strike_w.is_empty());
             if let Some(lg) = strike {
-                start = self.contact.run_with(&mut self.force[from..to], agraffe, Some(&mut self.stretch[..n]));
+                start = self.contact.run_contact_outputs(&mut self.force[from..to], agraffe, Some(&mut self.stretch[..n]), pulse);
                 self.nl_strike_run(lg, from, start);
             } else {
-                start = self.contact.run(&mut self.force[from..to], agraffe);
+                start = self.contact.run_contact_outputs(&mut self.force[from..to], agraffe, None, pulse);
                 if let (true, Some(lg)) = (self.nl_old, nm.longitudinal.as_ref()) {
                     self.nl_strike_run(lg, from, start);
+                }
+            }
+            // The contact solver reports string-side bridge force, including
+            // the longitudinal contribution above. Leave the agraffe alone.
+            if nm.board_coupling != 1.0 {
+                for f in &mut self.force[from..from + start] {
+                    *f *= nm.board_coupling;
                 }
             }
             if !self.contact.is_active() {
@@ -372,25 +455,60 @@ impl Voice {
                 let (o1, o2) = o.split_at_mut(1);
                 b.process2(None, &mut o1[0][start..n], &mut o2[0][start..n]);
             }
-            if forced > 0 && self.forced_age < self.forced_ramp {
-                let r = self.forced_ramp as f32;
-                for i in start..n {
-                    let age = self.forced_age + (i - start) as u32;
-                    if age >= self.forced_ramp {
-                        break;
-                    }
-                    let g = 0.5 - 0.5 * (std::f32::consts::PI * age as f32 / r).cos();
-                    for o in &mut self.forced_out[..2 * forced] {
-                        o[i] *= g;
+        }
+        if forced > 0 {
+            let fade_samples = (self.forced_ramp.saturating_sub(self.forced_age) as usize).min(n - start);
+            let stop = start + fade_samples;
+            for (p, pair) in self.forced_out.chunks_exact_mut(2).take(forced).enumerate() {
+                let [left, right] = &mut self.forced_scratch;
+                if self.forced_carry {
+                    left[..stop].fill(0.0);
+                    right[..stop].fill(0.0);
+                    self.forced_previous[p].process2(None, &mut left[..stop], &mut right[..stop]);
+                    pair[0][..start].copy_from_slice(&left[..start]);
+                    pair[1][..start].copy_from_slice(&right[..start]);
+                }
+                for i in start..stop {
+                    let g = forced_weight(self.forced_age + (i - start) as u32, self.forced_ramp);
+                    pair[0][i] *= g;
+                    pair[1][i] *= g;
+                    if self.forced_carry {
+                        pair[0][i] += (1.0 - g) * left[i];
+                        pair[1][i] += (1.0 - g) * right[i];
                     }
                 }
             }
-            if forced > 0 {
-                self.forced_age = self.forced_age.saturating_add((n - start) as u32);
+            self.forced_age = self.forced_age.saturating_add((n - start) as u32);
+            if !self.contact.is_active() && self.forced_age >= self.forced_ramp {
+                self.forced_carry = false;
             }
         }
         if let (true, Some(lg)) = (nl_on, nl) {
-            self.nl_run(lg, from + start, to);
+            self.nl_run(lg, from + start, to, nm.board_coupling);
+        }
+        // Scale the primary drives together, before self-cancellation and the
+        // shared board. Other keys' sympathetic responses already carry this gain.
+        if self.primary_gain != 1.0 || self.gain_ramp_left > 0 {
+            for i in 0..n {
+                if self.gain_ramp_left > 0 {
+                    self.primary_gain += (self.target_gain - self.primary_gain) / self.gain_ramp_left as f32;
+                    self.gain_ramp_left -= 1;
+                    if self.gain_ramp_left == 0 {
+                        self.primary_gain = self.target_gain;
+                    }
+                }
+                self.force[from + i] *= self.primary_gain;
+                self.agraffe[i] *= self.primary_gain;
+                if !self.rear_contact.is_empty() {
+                    self.rear_contact[i] *= self.primary_gain;
+                }
+                if rocking {
+                    self.rock[i] *= self.primary_gain;
+                }
+                for output in &mut self.forced_out[..2 * forced] {
+                    output[i] *= self.primary_gain;
+                }
+            }
         }
         for (i, f) in self.force[from..to].iter().enumerate() {
             self.force_ring[((t0 + (from + i) as u64) as usize) & (RING - 1)] = *f;
@@ -404,6 +522,19 @@ impl Voice {
                     let t = t0 + (from + i) as u64;
                     self.x2[i] = self.force_ring[(t.wrapping_sub(delay as u64) as usize) & (RING - 1)];
                 }
+                let u = if self.distance_input.is_empty() {
+                    u
+                } else {
+                    if !self.distance_gain.is_finite() {
+                        self.distance_gain = self.distance_target;
+                    }
+                    for (i, &sample) in u.iter().enumerate() {
+                        self.distance_gain += self.distance_step * (self.distance_target - self.distance_gain);
+                        self.distance_input[i] = sample * self.distance_gain;
+                        self.x2[i] *= self.distance_gain;
+                    }
+                    &self.distance_input[..n]
+                };
                 // A string at rest under a bridge at rest (the board asleep):
                 // nothing to compute.
                 let own = self.x2[..n].iter().any(|&x| x != 0.0);
@@ -422,6 +553,11 @@ impl Voice {
             // Damped: the sympathetic part still decays freely.
             None if self.sym.energy() > self.sym_silence => self.sym.process(None, f),
             None => {}
+        }
+        if self.seated_return != 1.0 && self.engagement > 0.0 {
+            let e = self.engagement.clamp(0.0, 1.0) as f32;
+            let participation = 1.0 + (self.seated_return - 1.0) * e * e * (3.0 - 2.0 * e);
+            for sample in &mut self.sym_force[..n] { *sample *= participation; }
         }
         let a = self.share_a;
         let [mut y0, mut y1] = self.lp;
@@ -578,7 +714,7 @@ impl Voice {
 
     /// Adds the longitudinal force on the bridge to `force[a..b]`, advancing
     /// the partial displacements freely from the segment's start.
-    fn nl_run(&mut self, lg: &crate::note_model::Longitudinal, a: usize, b: usize) {
+    fn nl_run(&mut self, lg: &crate::note_model::Longitudinal, a: usize, b: usize, board_coupling: f32) {
         let np = lg.slope.len();
         let nl = lg.long_pole.len();
         for t in a..b {
@@ -628,7 +764,7 @@ impl Voice {
             let (x1, y1) = self.nl_hp;
             let y = lg.hp_pole * (y1 + out - x1);
             self.nl_hp = (out, y);
-            self.force[t] += y;
+            self.force[t] += board_coupling * y;
         }
     }
 
